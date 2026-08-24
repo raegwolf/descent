@@ -38,7 +38,13 @@ typedef signed char byte;
 typedef unsigned char ubyte;
 typedef unsigned short ushort;
 typedef unsigned int uint;
+#if defined(MACOS)
+/* DOS and its data files define ulong as exactly 32 bits. */
+#include <stdint.h>
+typedef uint32_t ulong;
+#else
 typedef unsigned long ulong;
+#endif
 
 //define a boolean
 typedef ubyte bool;

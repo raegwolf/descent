@@ -63,6 +63,8 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 #include "clip.h"
 
+#if defined(MACOS)
+#if 0
 extern void gr_modex_line();
 int modex_line_vertincr;
 int modex_line_incr1;
@@ -72,6 +74,18 @@ int modex_line_y1;
 int modex_line_x2;		
 int modex_line_y2;		
 ubyte modex_line_Color;
+#endif
+#else
+extern void gr_modex_line();
+int modex_line_vertincr;
+int modex_line_incr1;
+int modex_line_incr2;		
+int modex_line_x1;		
+int modex_line_y1;		
+int modex_line_x2;		
+int modex_line_y2;		
+ubyte modex_line_Color;
+#endif
 
 /*
 Symmetric Double Step Line Algorithm
@@ -307,6 +321,23 @@ int gr_uline(fix _a1, fix _b1, fix _a2, fix _b2)
 
 	switch(TYPE)
 	{
+#if defined(MACOS)
+	#if 0
+	case BM_LINEAR:
+		gr_linear_line( a1, b1, a2, b2 );
+		return 0;
+	#endif
+	#if 0
+	case BM_MODEX:
+		modex_line_x1 = a1+XOFFSET;		
+		modex_line_y1 = b1+YOFFSET;		
+		modex_line_x2 = a2+XOFFSET;		
+		modex_line_y2 = b2+YOFFSET;		
+		modex_line_Color = grd_curcanv->cv_color;
+		gr_modex_line();
+		return 0;
+	#endif
+#else
 	case BM_LINEAR:
 		gr_linear_line( a1, b1, a2, b2 );
 		return 0;
@@ -318,6 +349,7 @@ int gr_uline(fix _a1, fix _b1, fix _a2, fix _b2)
 		modex_line_Color = grd_curcanv->cv_color;
 		gr_modex_line();
 		return 0;
+#endif
 	default:
 		gr_universal_uline( a1, b1, a2, b2 );
 		return 0;
@@ -344,5 +376,4 @@ int gr_line(fix a1, fix b1, fix a2, fix b2)
 	return clipped;
 
 }
-
 

@@ -101,15 +101,25 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: mission.c 2.9 1995/05/26 16:16:32 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: mission.c 2.9 1995/05/26 16:16:32 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <dos.h>
 #include <ctype.h>
+#if defined(MACOS)
+#include "psstring.h"
+#else
+#endif
 
 #include "cfile.h"
 
@@ -150,7 +160,11 @@ int istok(char *buf,char *tok)
 }
 
 //adds a terminating 0 after a string at the first white space
+#if defined(MACOS)
+void add_term(char *s)
+#else
 add_term(char *s)
+#endif
 {
 	while (*s && !isspace(*s)) s++;
 
@@ -189,10 +203,21 @@ char *get_parm_value(char *parm,FILE *f)
 		return NULL;
 }
 
+#if defined(MACOS)
+int ml_sort_func(const void *a, const void *b)
+#else
 ml_sort_func(mle *e0,mle *e1)
+#endif
 {
+#if defined(MACOS)
+	const mle *e0 = a, *e1 = b;
+#else
+#endif
 	return strcmp(e0->mission_name,e1->mission_name);
+#if defined(MACOS)
+#else
 
+#endif
 }
 
 
@@ -202,7 +227,13 @@ ml_sort_func(mle *e0,mle *e1)
 int build_mission_list(int anarchy_mode)
 {
 	int count=0;
+#if defined(MACOS)
+	#if 0
 	struct find_t find;
+	#endif
+#else
+	struct find_t find;
+#endif
 
 	//fill in built-in level
 
@@ -215,6 +246,8 @@ int build_mission_list(int anarchy_mode)
 
 	//now search for levels on disk
 
+#if defined(MACOS)
+	#if 0
 	if( !_dos_findfirst( "*.MSN", 0, &find ) )	{
 		do	{
 			FILE *mfile;
@@ -265,6 +298,59 @@ int build_mission_list(int anarchy_mode)
 
 		} while( !_dos_findnext( &find ) && count<MAX_MISSIONS);
 	}
+	#endif
+#else
+	if( !_dos_findfirst( "*.MSN", 0, &find ) )	{
+		do	{
+			FILE *mfile;
+			int is_anarchy;
+			char temp[13],*t;
+
+			strcpy(temp,find.name);
+			if ((t = strchr(temp,'.')) == NULL)
+				continue;
+			*t = 0;			//kill extension
+
+			strncpy( Mission_list[count].filename, temp, 9 );
+			Mission_list[count].anarchy_only_flag = is_anarchy = 0;
+
+			mfile = fopen(find.name,"rt");
+
+			if (mfile) {
+				char *p;
+
+				p = get_parm_value("name",mfile);
+
+				if (p) {
+					char *t;
+					if ((t=strchr(p,';'))!=NULL)
+						*t=0;
+					t = p + strlen(p)-1;
+					while (isspace(*t)) t--;
+					strncpy(Mission_list[count].mission_name,p,MISSION_NAME_LEN);
+				}
+				else {
+					fclose(mfile);
+					continue;			//abort this mission file
+				}
+
+				p = get_parm_value("type",mfile);
+
+				//get mission type 
+				if (p)
+					Mission_list[count].anarchy_only_flag = is_anarchy = istok(p,"anarchy");
+
+				fclose(mfile);
+
+				if (!anarchy_mode && is_anarchy)
+					continue;		//skip this mission
+
+				count++;
+			}
+
+		} while( !_dos_findnext( &find ) && count<MAX_MISSIONS);
+	}
+#endif
 #ifdef USE_CD
 	if ( strlen(destsat_cdpath) )	{
 		int i;
@@ -358,6 +444,40 @@ int load_mission(int mission_num)
 
 	mprintf(( 0, "Loading mission %d\n", mission_num ));
 
+#if defined(MACOS)
+#ifndef DEST_SAT
+	if (mission_num == 0) {		//built-in mission
+		int i;
+
+#ifdef ROCKWELL_CODE
+		Last_level = 7;
+		Last_secret_level = 0;
+
+		//build level names
+		for (i=0;i<Last_level;i++)
+			sprintf(Level_names[i], "LEVEL%02d.RDL", i+1);
+#else
+		#ifndef SHAREWARE
+		Last_level = BIM_LAST_LEVEL;
+		Last_secret_level = BIM_LAST_SECRET_LEVEL;
+		#endif
+
+		//build level names
+		for (i=0;i<Last_level;i++)
+			sprintf(Level_names[i], "LEVEL%02d.RDL", i+1);
+		for (i=0;i<-Last_secret_level;i++)
+			sprintf(Secret_level_names[i], "LEVELS%1d.RDL", i+1);
+
+		Secret_level_table[0] = 10;
+		Secret_level_table[1] = 21;
+		Secret_level_table[2] = 24;
+#endif
+		strcpy(Briefing_text_filename,BIM_BRIEFING_FILE);
+		strcpy(Ending_text_filename,BIM_ENDING_FILE);
+		cfile_use_alternate_hogfile(NULL);		//disable alternate
+	} else 
+#endif
+#else
 #ifndef DEST_SAT
 	if (mission_num == 0) {		//built-in mission
 		int i;
@@ -388,6 +508,7 @@ int load_mission(int mission_num)
 		cfile_use_alternate_hogfile(NULL);		//disable alternate
 	} else 
 #endif
+#endif
 	{		 //NOTE LINK TO ABOVE IF!!!!!
 			//read mission from file 
 		FILE *mfile;
@@ -417,8 +538,15 @@ int load_mission(int mission_num)
 		}
 
 		//init vars
+#if defined(MACOS)
+		#ifndef SHAREWARE
 		Last_level = 		0;
 		Last_secret_level = 0;
+		#endif
+#else
+		Last_level = 		0;
+		Last_secret_level = 0;
+#endif
 		Briefing_text_filename[0] = 0;
 		Ending_text_filename[0] = 0;
 	
@@ -473,7 +601,13 @@ int load_mission(int mission_num)
 						add_term(buf);
 						if (strlen(buf) <= 12) {
 							strcpy(Level_names[i],buf);
+#if defined(MACOS)
+							#ifndef SHAREWARE
 							Last_level++;
+							#endif
+#else
+							Last_level++;
+#endif
 						}
 						else
 							break;
@@ -501,7 +635,13 @@ int load_mission(int mission_num)
 							Secret_level_table[i] = atoi(t);
 							if (Secret_level_table[i]<1 || Secret_level_table[i]>Last_level)
 								break;
+#if defined(MACOS)
+							#ifndef SHAREWARE
 							Last_secret_level--;
+							#endif
+#else
+							Last_secret_level--;
+#endif
 						}
 						else
 							break;
@@ -540,5 +680,4 @@ int load_mission_by_name(char *mission_name)
 
 	return 0;		//couldn't find mission
 }
-
 

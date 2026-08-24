@@ -426,7 +426,11 @@ typedef struct DiskBitmapHeader {
 	ubyte flags;
 	ubyte avg_color;
 	int offset;
+#if defined(MACOS)
+} __attribute__((packed)) DiskBitmapHeader;
+#else
 } DiskBitmapHeader;
+#endif
 
 typedef struct DiskSoundHeader {
 	char name[8];
@@ -665,6 +669,11 @@ int piggy_init()
 	Piggy_fp = cfopen( filename, "rb" );
 	if (Piggy_fp==NULL) return 0;
 
+	#if defined(MACOS) && defined(SHAREWARE)
+	/* Descent 1.4 shareware PIG files begin directly with bitmap/sound counts.
+	 * Registered 1.5 files prepend Pigdata_start and compiled bitmap tables. */
+	Pigdata_start = 0;
+	#else
 	cfread( &Pigdata_start, sizeof(int), 1, Piggy_fp );
 #ifdef EDITOR
 	if ( FindArg("-nobm") )
@@ -673,6 +682,7 @@ int piggy_init()
 		bm_read_all( Piggy_fp );	// Note connection to above if!!!
 		cfread( GameBitmapXlat, sizeof(ushort)*MAX_BITMAP_FILES, 1, Piggy_fp );
 	}
+	#endif
 
 	cfseek( Piggy_fp, Pigdata_start, SEEK_SET );
 	size = cfilelength(Piggy_fp) - Pigdata_start;

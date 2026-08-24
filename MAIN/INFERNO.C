@@ -636,10 +636,17 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  * 
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: inferno.c 2.36 1996/01/05 16:52:16 john Exp $";
+//static char copyright[] = "DESCENT   COPYRIGHT (C) 1994,1995 PARALLAX SOFTWARE CORPORATION";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: inferno.c 2.36 1996/01/05 16:52:16 john Exp $";
 static char copyright[] = "DESCENT   COPYRIGHT (C) 1994,1995 PARALLAX SOFTWARE CORPORATION";
 #pragma on (unreferenced)
+#endif
 
 #include <io.h>
 #include <dos.h>
@@ -651,9 +658,19 @@ static char copyright[] = "DESCENT   COPYRIGHT (C) 1994,1995 PARALLAX SOFTWARE C
 #include <time.h>
 #include <dos.h>
 #include <direct.h>
+#if defined(MACOS)
+#include "psstring.h"
+#else
+#endif
 
 #include "gr.h"
+#if defined(MACOS)
+#ifdef EDITOR
 #include "ui.h"
+#endif
+#else
+#include "ui.h"
+#endif
 #include "mono.h"
 #include "key.h"
 #include "timer.h"
@@ -662,7 +679,13 @@ static char copyright[] = "DESCENT   COPYRIGHT (C) 1994,1995 PARALLAX SOFTWARE C
 #include "inferno.h"
 #include "error.h"
 #include "cflib.h"
+#if defined(MACOS)
+#if 0
 #include "div0.h"
+#endif
+#else
+#include "div0.h"
+#endif
 #include "game.h"
 #include "segment.h"		//for Side_to_verts
 #include "mem.h"
@@ -685,7 +708,13 @@ static char copyright[] = "DESCENT   COPYRIGHT (C) 1994,1995 PARALLAX SOFTWARE C
 #include "titles.h"
 #include "player.h"
 #include "text.h"
+#if defined(MACOS)
+#ifdef NETWORK
 #include "ipx.h"
+#endif
+#else
+#include "ipx.h"
+#endif
 #include "newdemo.h"
 #include "victor.h"
 #include "network.h"
@@ -723,6 +752,11 @@ char desc_id_exit_num = 0;
 int Function_mode=FMODE_MENU;		//game or editor?
 int Screen_mode=-1;					//game screen or editor screen?
 
+#if defined(MACOS)
+void show_order_form();
+
+#else
+#endif
 //--unused-- grs_bitmap Inferno_bitmap_title;
 
 int WVIDEO_running=0;		//debugger can set to 1 if running
@@ -735,8 +769,37 @@ int Inferno_is_800x600_available = 0;
 
 void install_int3_handler(void);
 
+#if defined(MACOS)
+#if 0
 int __far descent_critical_error_handler( unsigned deverr, unsigned errcode, unsigned far * devhdr );
+#endif
+#else
+int __far descent_critical_error_handler( unsigned deverr, unsigned errcode, unsigned far * devhdr );
+#endif
 
+#if defined(MACOS)
+#ifndef NDEBUG
+#if 0
+void do_heap_check()
+{
+	int heap_status;
+
+	heap_status = _heapset( 0xFF );
+	switch( heap_status )
+	{
+	case _HEAPBADBEGIN:
+		mprintf((1, "ERROR - heap is damaged\n"));
+		Int3();
+		break;
+	case _HEAPBADNODE:
+		mprintf((1, "ERROR - bad node in heap\n" ));
+		Int3();
+		break;
+	}
+}
+#endif
+#endif
+#else
 #ifndef NDEBUG
 do_heap_check()
 {
@@ -755,6 +818,7 @@ do_heap_check()
 		break;
 	}
 }
+#endif
 #endif
 
 int registered_copy=0;
@@ -797,6 +861,23 @@ check_id_checksum_and_date()
 	printf ("%s %s\n", TXT_REGISTRATION, name);
 }
 
+#if defined(MACOS)
+#if 0
+int is_3dbios_installed()
+{
+	dpmi_real_regs rregs;
+	memset(&rregs,0,sizeof(dpmi_real_regs));
+	rregs.eax = 0x4ed0;
+	//rregs.ebx = 0x3d10;	
+	dpmi_real_int386x( 0x10, &rregs );
+	if ( (rregs.edx & 0xFFFF) != 0x3344 )
+		return 0;
+	else
+		return 1;
+
+}
+#endif
+#else
 int is_3dbios_installed()
 {
 	dpmi_real_regs rregs;
@@ -811,6 +892,7 @@ int is_3dbios_installed()
 
 }
 
+#endif
 
 int init_graphics()
 {
@@ -862,6 +944,8 @@ int init_graphics()
 
 extern fix fixed_frametime;
 
+#if defined(MACOS)
+#if 0
 // Returns 1 if ok, 0 if failed...
 int init_gameport()
 {
@@ -942,6 +1026,89 @@ void dos_check_file_handles(int num_required)
 		exit(1);
 	}
 }
+#endif
+#else
+// Returns 1 if ok, 0 if failed...
+int init_gameport()
+{
+	union REGS regs;
+
+	memset(&regs,0,sizeof(regs));
+	regs.x.eax = 0x8400;
+	regs.x.edx = 0xF0;
+   int386( 0x15, &regs, &regs );
+	if ( ( regs.x.eax & 0xFFFF ) == 'SG' )
+		return 1;
+	else
+		return 0;
+}
+
+void check_dos_version()
+{
+	int major, minor;
+	union REGS regs;
+
+	memset(&regs,0,sizeof(regs));
+	regs.x.eax = 0x3000;							// Get MS-DOS Version Number
+   int386( 0x21, &regs, &regs );
+
+	major = regs.h.al;
+	minor = regs.h.ah;
+	
+	if ( major < 5 )	{
+		printf( "%s %d.d\n%s", TXT_DOS_VERSION_1, major, minor, TXT_DOS_VERSION_2);
+		exit(1);
+	}
+	//printf( "\nUsing MS-DOS %d.%d...\n", major, minor );
+}
+
+void change_to_dir(char *cmd_line)
+{
+	char drive[_MAX_DRIVE], dir[_MAX_DIR], curdir[_MAX_DIR];
+	unsigned total, cur_drive;
+
+	_splitpath(cmd_line, drive, dir, NULL, NULL);
+	dir[strlen(dir) - 1] = '\0';
+	if (drive[0] != '\0') {
+		_dos_getdrive(&cur_drive);
+		if (cur_drive != (drive[0] - 'A' + 1))
+			_dos_setdrive(drive[0] - 'A' + 1, &total);
+	}
+	getcwd(curdir, _MAX_DIR);
+	if (stricmp(&(curdir[2]), dir))
+		chdir(dir);
+}
+
+void dos_check_file_handles(int num_required)
+{
+	int i, n;
+	FILE * fp[16];
+
+	if ( num_required > 16 )
+		num_required = 16;
+
+	n = 0;	
+	for (i=0; i<16; i++ )
+		fp[i] = NULL;
+	for (i=0; i<16; i++ )	{
+		fp[i] = fopen( "nul", "wb" );
+		if ( !fp[i] ) break;
+	}
+	n = i;
+	for (i=0; i<16; i++ )	{
+		if (fp[i])
+			fclose(fp[i]);
+	}
+	if ( n < num_required )	{
+		printf( "\n%s\n", TXT_NOT_ENOUGH_HANDLES );
+		printf( "------------------------\n" );
+		printf( "%d/%d %s\n", n, num_required, TXT_HANDLES_1 );
+		printf( "%s\n", TXT_HANDLES_2);
+		printf( "%s\n", TXT_HANDLES_3);
+		exit(1);
+	}
+}
+#endif
 
 #define NEEDED_DOS_MEMORY   			( 300*1024)		// 300 K
 #define NEEDED_LINEAR_MEMORY 			(7680*1024)		// 7.5 MB
@@ -978,6 +1145,8 @@ void mem_int_to_string( int number, char *dest )
 	strrev(dest);
 }
 
+#if defined(MACOS)
+#if 0
 void check_memory()
 {
 	char text[32];
@@ -1024,6 +1193,55 @@ void check_memory()
 	}
 
 }
+#endif
+#else
+void check_memory()
+{
+	char text[32];
+
+	printf( "\n%s\n", TXT_AVAILABLE_MEMORY);
+	printf( "----------------\n" );
+	mem_int_to_string( dpmi_dos_memory/1024, text );
+	printf( "Conventional: %7s KB\n", text );
+	mem_int_to_string( dpmi_physical_memory/1024, text );
+	printf( "Extended:     %7s KB\n", text );
+	if ( dpmi_available_memory > dpmi_physical_memory )	{
+		mem_int_to_string( (dpmi_available_memory-dpmi_physical_memory)/1024, text );
+	} else {
+		mem_int_to_string( 0, text );
+	}
+	printf( "Virtual:      %7s KB\n", text );
+	printf( "\n" );
+
+	if ( dpmi_dos_memory < NEEDED_DOS_MEMORY )	{
+		printf( "%d %s\n", NEEDED_DOS_MEMORY - dpmi_dos_memory, TXT_MEMORY_CONFIG );
+		exit(1);
+	}
+
+	if ( dpmi_available_memory < NEEDED_LINEAR_MEMORY )	{
+		if ( dpmi_virtual_memory )	{
+			printf( "%d %s\n", NEEDED_LINEAR_MEMORY - dpmi_available_memory, TXT_RECONFIGURE_VMM );
+		} else {
+			printf( "%d %s\n", NEEDED_LINEAR_MEMORY - dpmi_available_memory, TXT_MORE_MEMORY );
+			printf( "%s\n", TXT_MORE_MEMORY_2);
+		}
+		exit(1);
+	}
+
+	if ( dpmi_physical_memory < NEEDED_PHYSICAL_MEMORY )	{
+		printf( "%d %s\n", NEEDED_PHYSICAL_MEMORY - dpmi_physical_memory, TXT_PHYSICAL_MEMORY );
+		if ( dpmi_virtual_memory )	{	
+			printf( "%s\n", TXT_PHYSICAL_MEMORY_2);
+		}
+		exit(1);
+	}
+
+	if ( dpmi_physical_memory < LOW_PHYSICAL_MEMORY_CUTOFF )	{
+		piggy_low_memory = 1;
+	}
+
+}
+#endif
 
 
 int Inferno_verbose = 0;
@@ -1066,6 +1284,23 @@ unsigned descent_critical_deverror = 0;
 unsigned descent_critical_errcode = 0;
 
 
+#if defined(MACOS)
+#if 0
+#pragma off (check_stack)
+int __far descent_critical_error_handler(unsigned deverror, unsigned errcode, unsigned __far * devhdr )
+{
+	devhdr = devhdr;
+	descent_critical_error++;
+	descent_critical_deverror = deverror;
+	descent_critical_errcode = errcode;
+	return _HARDERR_FAIL;
+}
+void chandler_end (void)  // dummy functions
+{
+}
+#pragma on (check_stack)
+#endif
+#else
 
 #pragma off (check_stack)
 int __far descent_critical_error_handler(unsigned deverror, unsigned errcode, unsigned __far * devhdr )
@@ -1080,6 +1315,7 @@ void chandler_end (void)  // dummy functions
 {
 }
 #pragma on (check_stack)
+#endif
 
 extern int Network_allow_socket_changes;
 
@@ -1100,14 +1336,73 @@ int find_descent_cd();
 extern int Config_vr_type;
 extern int Config_vr_tracking;
 
+#if defined(MACOS)
+void function_loop()
+#else
 int main(int argc,char **argv)
+#endif
 {
+#if defined(MACOS)
+	while (Function_mode != FMODE_EXIT)
+	{
+		switch( Function_mode )	{
+		case FMODE_MENU:
+			if ( Auto_demo )	{
+				newdemo_start_playback(NULL);		// Randomly pick a file
+				if (Newdemo_state != ND_STATE_PLAYBACK)	
+					Error("No demo files were found for autodemo mode!");
+			} else {
+				//check_joystick_calibration();
+				DoMenu();									 	
+#ifdef EDITOR
+				if ( Function_mode == FMODE_EDITOR )	{
+					create_new_mine();
+					SetPlayerFromCurseg();
+				}
+#endif
+			}
+			break;
+		case FMODE_GAME:
+			#ifdef EDITOR
+				keyd_editor_mode = 0;
+			#endif
+			game();
+			if ( Function_mode == FMODE_MENU )
+				songs_play_song( SONG_TITLE, 1 );
+			break;
+		#ifdef EDITOR
+		case FMODE_EDITOR:
+			keyd_editor_mode = 1;
+			editor();
+			_harderr( (void *)descent_critical_error_handler );		// Reinstall game error handler
+			if ( Function_mode == FMODE_GAME ) {
+				Game_mode = GM_EDITOR;
+				editor_reset_stuff_on_level();
+				N_players = 1;
+			}
+			break;
+		#endif
+		default:
+			Error("Invalid function mode %d",Function_mode);
+		}
+	}
+}
+
+int inferno_init(int argc,char **argv)
+{
+	int t;
+#else
 	int i,t;
+#endif
 	ubyte title_pal[768];
 
 	error_init(NULL);
 
+#if defined(MACOS)
+	//setbuf(stdout, NULL);	// unbuffered output via printf
+#else
 	setbuf(stdout, NULL);	// unbuffered output via printf
+#endif
 		
 	InitArgs( argc,argv );
 
@@ -1123,6 +1418,8 @@ int main(int argc,char **argv)
 	if (Inferno_verbose) printf( "\n" );
 
 	if (Inferno_verbose) printf( "\n%s...", TXT_INITIALIZING_CRIT);
+#if defined(MACOS)
+	#if 0
 	if (!dpmi_lock_region((void near *)descent_critical_error_handler,(char *)chandler_end - (char near *)descent_critical_error_handler))	{
 		Error( "Unable to lock critial error handler" );
 	}
@@ -1136,6 +1433,22 @@ int main(int argc,char **argv)
 		Error( "Unable to lock critial error handler" );
 	}
 	_harderr((void *) descent_critical_error_handler );
+	#endif
+#else
+	if (!dpmi_lock_region((void near *)descent_critical_error_handler,(char *)chandler_end - (char near *)descent_critical_error_handler))	{
+		Error( "Unable to lock critial error handler" );
+	}
+	if (!dpmi_lock_region(&descent_critical_error,sizeof(int)))	{
+		Error( "Unable to lock critial error handler" );
+	}
+	if (!dpmi_lock_region(&descent_critical_deverror,sizeof(unsigned)))	{
+		Error( "Unable to lock critial error handler" );
+	}
+	if (!dpmi_lock_region(&descent_critical_errcode,sizeof(unsigned)))	{
+		Error( "Unable to lock critial error handler" );
+	}
+	_harderr((void *) descent_critical_error_handler );
+#endif
 	//Above line modified by KRB, added (void *) cast
 	//for the compiler.
 
@@ -1192,7 +1505,11 @@ int main(int argc,char **argv)
 		printf( "%s\n", TXT_COMMAND_LINE_8 );
 //		printf( "\n");
 		printf( "\n%s\n",TXT_PRESS_ANY_KEY3);
+#if defined(MACOS)
+		//getch();
+#else
 		getch();
+#endif
 		printf( "\n" );
 		printf( "%s\n", TXT_COMMAND_LINE_9);
 		printf( "%s\n", TXT_COMMAND_LINE_10);
@@ -1239,6 +1556,8 @@ int main(int argc,char **argv)
 
 	Lighting_on = 1;
 
+#if defined(MACOS)
+	#if 0
 	if ( !FindArg( "-nodoscheck" ))
 		check_dos_version();
 	
@@ -1247,6 +1566,17 @@ int main(int argc,char **argv)
 
 	if ( !FindArg( "-nomemcheck" ))
 		check_memory();
+	#endif
+#else
+	if ( !FindArg( "-nodoscheck" ))
+		check_dos_version();
+	
+	if ( !FindArg( "-nofilecheck" ))
+		dos_check_file_handles(5);
+
+	if ( !FindArg( "-nomemcheck" ))
+		check_memory();
+#endif
 
 	strcpy(Menu_pcx_name, "menu.pcx");	//	Used to be menu2.pcx.
 
@@ -1282,6 +1612,61 @@ int main(int argc,char **argv)
 	joy_set_timer_rate( digi_timer_rate );	 	// Tell joystick how fast timer is going
 
 	if (Inferno_verbose) printf( "\n%s", TXT_VERBOSE_3);
+#if defined(MACOS)
+	#if !defined(MACOS)
+	key_init();
+	if (!FindArg( "-nomouse" ))	{
+		if (Inferno_verbose) printf( "\n%s", TXT_VERBOSE_4);
+		if (FindArg( "-nocyberman" ))
+			mouse_init(0);
+		else
+			mouse_init(1);
+	} else {
+	 	if (Inferno_verbose) printf( "\n%s", TXT_VERBOSE_5);
+	}
+	if (!FindArg( "-nojoystick" ))	{
+		if (Inferno_verbose) printf( "\n%s", TXT_VERBOSE_6);
+		joy_init();
+		if ( FindArg( "-joyslow" ))	{
+			if (Inferno_verbose) printf( "\n%s", TXT_VERBOSE_7);
+			joy_set_slow_reading(JOY_SLOW_READINGS);
+		}
+		if ( FindArg( "-joypolled" ))	{
+			if (Inferno_verbose) printf( "\n%s", TXT_VERBOSE_8);
+			joy_set_slow_reading(JOY_POLLED_READINGS);
+		}
+		if ( FindArg( "-joybios" ))	{
+			if (Inferno_verbose) printf( "\n%s", TXT_VERBOSE_9);
+			joy_set_slow_reading(JOY_BIOS_READINGS);
+		}
+		if ( FindArg( "-joynice" ))	{
+			if (Inferno_verbose) printf( "\n%s", "Using nice joystick poller..." );
+			joy_set_slow_reading(JOY_FRIENDLY_READINGS);
+		}
+		if ( FindArg( "-gameport" ))	{
+			if ( init_gameport() )	{			
+				joy_set_slow_reading(JOY_BIOS_READINGS);
+			} else {
+				Error( "\nCouldn't initialize the Notebook Gameport.\nMake sure the NG driver is loaded.\n" );
+			}
+		}
+	} else {
+		if (Inferno_verbose) printf( "\n%s", TXT_VERBOSE_10);
+	}
+	if (Inferno_verbose) printf( "\n%s", TXT_VERBOSE_11);
+	div0_init(DM_ERROR);
+
+	//------------ Init sound (excluded from the MACOS graphics pass) --------
+	if (!FindArg( "-nosound" ))	{
+		if (digi_init())	{
+			printf( "\n%s\n", TXT_PRESS_ANY_KEY3);
+			key_getch();
+		}
+	} else {
+		if (Inferno_verbose) printf( "\n%s",TXT_SOUND_DISABLED );
+	}
+	#endif
+#else
 	key_init();
 	if (!FindArg( "-nomouse" ))	{
 		if (Inferno_verbose) printf( "\n%s", TXT_VERBOSE_4);
@@ -1333,6 +1718,7 @@ int main(int argc,char **argv)
 	} else {
 		if (Inferno_verbose) printf( "\n%s",TXT_SOUND_DISABLED );
 	}
+#endif
 
 #ifdef NETWORK
 	if (!FindArg( "-nonetwork" ))	{
@@ -1377,6 +1763,8 @@ int main(int argc,char **argv)
 	}
 #endif
 
+#if defined(MACOS)
+	#if 0
 	i = FindArg( "-vfxtrak" );
 	if ( i > 0 )
 		kconfig_sense_init();
@@ -1430,6 +1818,62 @@ int main(int argc,char **argv)
 		VR_switch_eyes = 0;
 		VR_low_res = 0;
 	} else {
+	#endif
+#else
+	i = FindArg( "-vfxtrak" );
+	if ( i > 0 )
+		kconfig_sense_init();
+	else if ((Config_vr_type==1)&&(Config_vr_tracking>0))
+		kconfig_sense_init();
+		
+	i = FindArg( "-maxxtrak" );
+	if ( i > 0)	
+		victor_init_tracking( atoi(Args[i+1]) );
+	else if ((Config_vr_type==2)&&(Config_vr_tracking>0))
+		victor_init_tracking( Config_vr_tracking );
+
+	i = FindArg( "-viotrack" );
+	if ( i > 0 )
+		iglasses_init_tracking( atoi(Args[i+1]) );
+	else if ((Config_vr_type==3)&&(Config_vr_tracking>0))
+		iglasses_init_tracking( Config_vr_tracking );
+
+	if ( FindArg( "-vfx" ) || (Config_vr_type==1) )	{
+		vfx_init();
+		Game_vfx_flag = 1;
+		game_init_render_buffers(SM_640x480V, 320, 240, 0, VR_AREA_DET, 0 );
+		VR_low_res = 3;
+	} else if ( FindArg( "-cybermaxx" ) || (Config_vr_type==2) )	{
+		Game_victor_flag = 1;
+		game_init_render_buffers(SM_320x200C, 320, 100, 0, VR_INTERLACED, 1 );
+		VR_low_res = 0;
+	} else if ( FindArg( "-iglasses" ) || (Config_vr_type==3) )	{
+		Game_vio_flag = 1;
+		game_init_render_buffers(SM_320x400U, 320, 200, 1, VR_INTERLACED, 0 );
+		VR_low_res = 3;
+	} else if ( FindArg( "-cybermax2" ) || (Config_vr_type==6) )	{
+		game_init_render_buffers(SM_320x400U, 320, 200, 1, VR_INTERLACED, 0 );
+		VR_low_res = 3;
+	} else if ( FindArg( "-3dmaxlo" ) || (Config_vr_type==4) )	{
+		if (!is_3dbios_installed())	{
+			printf( "Error: Kasan 3DBIOS needs to be installed.\n" );
+			exit(1);
+		}
+		Game_3dmax_flag = 1;
+		game_init_render_buffers(SM_320x200C, 320, 100, 0, VR_INTERLACED, 0 );
+		VR_low_res = 0;
+		VR_switch_eyes = 0;
+	} else if ( FindArg( "-3dmaxhi" ) || (Config_vr_type==5) )	{
+		if (!is_3dbios_installed())	{
+			printf( "Error: Kasan's 3DBIOS needs to be installed.\n" );
+			exit(1);
+		}
+		Game_3dmax_flag = 2;
+		game_init_render_buffers(22, 320, 200, 1, VR_INTERLACED, 0 );
+		VR_switch_eyes = 0;
+		VR_low_res = 0;
+	} else {
+#endif
 		int screen_mode = SM_320x200C;
 		int screen_width = 320;
 		int screen_height = 200;
@@ -1437,6 +1881,8 @@ int main(int argc,char **argv)
 		int screen_compatible = 1;
 		int use_double_buffer = 0;
 
+#if defined(MACOS)
+		#if 0
 		if ( FindArg( "-lcdbios" ) )	{
 			if (!is_3dbios_installed())	{
 				printf( "Warning: LCDBIOS needs to be installed.\nPress Esc to continue anyway, any other key to exit.\n" );
@@ -1474,6 +1920,46 @@ int main(int argc,char **argv)
 				if (Inferno_verbose) printf( "Using 320x400 ModeX...\n" );
 			}
 		}
+		#endif
+#else
+		if ( FindArg( "-lcdbios" ) )	{
+			if (!is_3dbios_installed())	{
+				printf( "Warning: LCDBIOS needs to be installed.\nPress Esc to continue anyway, any other key to exit.\n" );
+				if ( key_getch()!=KEY_ESC )
+					exit(1);
+			}
+
+			if (Inferno_verbose) printf( "Enabling LCDBIOS...\n" );
+			Game_3dmax_flag = 3;
+			screen_compatible = 0;
+			VR_switch_eyes = 0;
+			VR_low_res = 0;
+			vr_mode = VR_INTERLACED;
+		}
+
+		if ( FindArg( "-simuleyes" ))  {
+			Game_simuleyes_flag = 1;
+		}
+
+		if (Game_simuleyes_flag)  {  // default to 320x400 (x200 per eye)
+			screen_mode = SM_320x400U;
+			screen_width = 320;	
+			screen_height = 400;
+			screen_compatible = 0;
+			use_double_buffer = 1;
+
+			if ( FindArg( "-320x200" ))	{
+				if (Inferno_verbose) printf( "Using 320x200...\n" );
+				screen_mode = SM_320x200C;
+				screen_width = 320;
+				screen_height = 200;
+				use_double_buffer = 0;
+			}
+			else  {
+				if (Inferno_verbose) printf( "Using 320x400 ModeX...\n" );
+			}
+		}
+#endif
 
 		if ( FindArg( "-320x240" ))	{
 			if (Inferno_verbose) printf( "Using 320x240 ModeX...\n" );
@@ -1525,8 +2011,16 @@ int main(int argc,char **argv)
 		if ( vr_mode == VR_INTERLACED ) 
 			screen_height /= 2;
 		game_init_render_buffers(screen_mode, screen_width, screen_height, use_double_buffer, vr_mode, screen_compatible );
+#if defined(MACOS)
+	#if 0
 	}
+	#endif
+#else
+	}
+#endif
 
+#if defined(MACOS)
+	#if 0
 	if (Game_victor_flag) {
 		char *vswitch = getenv( "CYBERMAXX" );
 		if ( vswitch )	{
@@ -1539,6 +2033,21 @@ int main(int argc,char **argv)
 		 	VR_switch_eyes = 0;
 		}
 	}
+	#endif
+#else
+	if (Game_victor_flag) {
+		char *vswitch = getenv( "CYBERMAXX" );
+		if ( vswitch )	{
+			char *p = strstr( vswitch, "/E:R" ); 
+			if ( p )	{
+				VR_switch_eyes = 1;
+			} else 
+				VR_switch_eyes = 0;
+		} else {		
+		 	VR_switch_eyes = 0;
+		}
+	}
+#endif
 
 
 #ifdef ARCADE
@@ -1560,10 +2069,19 @@ int main(int argc,char **argv)
 	control_invul_time = 0;
 #endif
 
+#if defined(MACOS)
+	#if 0
 	i = FindArg( "-xcontrol" );
 	if ( i > 0 )	{
 		kconfig_init_external_controls( strtol(Args[i+1], NULL, 0), strtol(Args[i+2], NULL, 0) );
 	}
+	#endif
+#else
+	i = FindArg( "-xcontrol" );
+	if ( i > 0 )	{
+		kconfig_init_external_controls( strtol(Args[i+1], NULL, 0), strtol(Args[i+2], NULL, 0) );
+	}
+#endif
 
 	if (Inferno_verbose) printf( "\n%s\n\n", TXT_INITIALIZING_GRAPHICS);
 	if ((t=gr_init( SM_ORIGINAL ))!=0)
@@ -1572,19 +2090,40 @@ int main(int argc,char **argv)
 	mprintf( (0, "Going into graphics mode..." ));
 	gr_set_mode(SM_320x200C);
 	mprintf( (0, "\nInitializing palette system..." ));
+#if defined(MACOS)
+	gr_use_palette_table( "PALETTE.256" );
+#else
    gr_use_palette_table( "PALETTE.256" );
+#endif
 	mprintf( (0, "\nInitializing font system..." ));
 	gamefont_init();	// must load after palette data loaded.
+#if defined(MACOS)
+	if (!FindArg("-notitles"))
+		songs_play_song( SONG_TITLE, 1 );
+#else
 	songs_play_song( SONG_TITLE, 1 );
+#endif
 
+#if defined(MACOS)
+	#if defined(MACOS)
+	if ( !FindArg( "-notitles" ) )
+	#elif !defined(RELEASE)
+	if ( !FindArg( "-notitles" ) ) 
+	#endif
+#else
 	#ifndef RELEASE
 	if ( !FindArg( "-notitles" ) ) 
 	#endif
+#endif
 	{	//NOTE LINK TO ABOVE!
 		show_title_screen( "iplogo1.pcx", 1 );
 		show_title_screen( "logo.pcx", 1 );
 	}
 
+#if defined(MACOS)
+	if (!FindArg("-notitles"))
+#else
+#endif
 	{
 		//grs_bitmap title_bm;
 		int pcx_error;
@@ -1604,6 +2143,21 @@ int main(int argc,char **argv)
 		}
 	}
 
+#if defined(MACOS)
+#ifdef EDITOR
+	if ( !FindArg("-nobm") )
+		bm_init_use_tbl();
+	else
+		bm_init();
+#else
+	#ifdef SHAREWARE
+	int bm_init_use_tbl();
+	bm_init_use_tbl();
+	#else
+	bm_init();
+	#endif
+#endif
+#else
 #ifdef EDITOR
 	if ( !FindArg("-nobm") )
 		bm_init_use_tbl();
@@ -1611,6 +2165,7 @@ int main(int argc,char **argv)
 		bm_init();
 #else
 		bm_init();
+#endif
 #endif
 
 	if ( FindArg( "-norun" ) )
@@ -1626,13 +2181,33 @@ int main(int argc,char **argv)
 	init_game();
 	set_detail_level_parameters(Detail_level);
 
+#if defined(MACOS)
+	Game_mode = GM_GAME_OVER;
+
+#else
+#endif
 	Players[Player_num].callsign[0] = '\0';
 	if (!Auto_demo) 	{
 		key_flush();
+#if defined(MACOS)
+		#if defined(MACOS)
+		/* Automated graphics smoke tests enter the original menu without
+		 * creating a persistent pilot file. Normal app launches are unchanged. */
+		if (FindArg("-macos-smoke"))
+			strcpy(Players[Player_num].callsign, "SMOKE");
+		else
+		#endif
+#else
+#endif
 		RegisterPlayer();		//get player's name
 	}
 
+#if defined(MACOS)
+	if (!FindArg("-notitles"))
+		gr_palette_fade_out( title_pal, 32, 0 );
+#else
 	gr_palette_fade_out( title_pal, 32, 0 );
+#endif
 
 	//check for special stamped version
 	if (registered_copy) {
@@ -1648,8 +2223,11 @@ int main(int argc,char **argv)
 
 	//kconfig_load_all();
 
+#if defined(MACOS)
+#else
 	Game_mode = GM_GAME_OVER;
 
+#endif
 	if (Auto_demo)	{
 		newdemo_start_playback("DESCENT.DEM");		
 		if (Newdemo_state == ND_STATE_PLAYBACK )
@@ -1657,6 +2235,12 @@ int main(int argc,char **argv)
 	}
 
 	build_mission_list(0);		// This also loads mission 0.
+#if defined(MACOS)
+	return 0;
+}
+	//function_loop();
+int inferno_done() {
+#else
 
 	while (Function_mode != FMODE_EXIT)
 	{
@@ -1701,6 +2285,7 @@ int main(int argc,char **argv)
 			Error("Invalid function mode %d",Function_mode);
 		}
 	}
+#endif
 
 	WriteConfigFile();
 
@@ -1714,15 +2299,24 @@ int main(int argc,char **argv)
 	#endif
 #endif
 
+#if defined(MACOS)
+	#ifndef NDEBUG
+	//if ( FindArg( "-showmeminfo" ) )
+//		show_mem_info = 1;		// Make memory statistics show
+	#endif
+#else
 	#ifndef NDEBUG
 	if ( FindArg( "-showmeminfo" ) )
 //		show_mem_info = 1;		// Make memory statistics show
 	#endif
+#endif
 
 	return(0);		//presumably successful exit
 }
 
 
+#if defined(MACOS)
+#if 0
 void check_joystick_calibration()	{
 	int x1, y1, x2, y2, c;
 	fix t1;
@@ -1752,11 +2346,47 @@ void check_joystick_calibration()	{
 	}
 
 }
+#endif
+#else
+void check_joystick_calibration()	{
+	int x1, y1, x2, y2, c;
+	fix t1;
+
+	if ( (Config_control_type!=CONTROL_JOYSTICK) &&
+		  (Config_control_type!=CONTROL_FLIGHTSTICK_PRO) &&
+		  (Config_control_type!=CONTROL_THRUSTMASTER_FCS) &&
+		  (Config_control_type!=CONTROL_GRAVIS_GAMEPAD)
+		) return;
+
+	joy_get_pos( &x1, &y1 );
+
+	t1 = timer_get_fixed_seconds();
+	while( timer_get_fixed_seconds() < t1 + F1_0/100 )
+		;
+
+	joy_get_pos( &x2, &y2 );
+
+	// If joystick hasn't moved...
+	if ( (abs(x2-x1)<30) &&  (abs(y2-y1)<30) )	{
+		if ( (abs(x1)>30) || (abs(x2)>30) ||  (abs(y1)>30) || (abs(y2)>30) )	{
+			c = nm_messagebox( NULL, 2, TXT_CALIBRATE, TXT_SKIP, TXT_JOYSTICK_NOT_CEN );
+			if ( c==0 )	{
+				joydefs_calibrate();
+			}
+		}
+	}
+
+}
+#endif
 
 void show_order_form()
 {
 	int pcx_error;
+#if defined(MACOS)
+	ubyte title_pal[768];
+#else
 	char title_pal[768];
+#endif
 	char	exit_screen[16];
 
 	gr_set_current_canvas( NULL );
@@ -1782,6 +2412,10 @@ void show_order_form()
 			while(!done)	{
 				if ( timer_get_approx_seconds() > time_out_value ) done = 1;
 				if (key_inkey()) done = 1;
+#if defined(MACOS)
+				gr_sync_display();
+#else
+#endif
 			}
 		}
 		gr_palette_fade_out( title_pal, 32, 0 );		

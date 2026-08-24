@@ -152,7 +152,18 @@ void load_text()
 		cfclose(tfile);
 	}
 
-	for (i=0,tptr=text;i<N_TEXT_STRINGS;i++) {
+	#if defined(MACOS) && defined(SHAREWARE)
+	/* The shareware DESCENT.TXB contains 514 entries; the registered headers
+	 * expose later IDs as well. Match the original shareware data contract. */
+	Text_string[518] = "ALT-F2\t  Save Game";
+	Text_string[519] = "ALT-F3\t  Load Game";
+	Text_string[520] = "Only in Registered version!";
+	#define TEXT_FILE_STRING_COUNT 514
+	#else
+	#define TEXT_FILE_STRING_COUNT N_TEXT_STRINGS
+	#endif
+
+	for (i=0,tptr=text;i<TEXT_FILE_STRING_COUNT;i++) {
 		char *p;
 
 		Text_string[i] = tptr;
@@ -160,7 +171,7 @@ void load_text()
 		tptr = strchr(tptr,'\n');
 
 		if (!tptr)
-			Error("Not enough strings in text file - expecting %d, found %d",N_TEXT_STRINGS,i);
+			Error("Not enough strings in text file - expecting %d, found %d",TEXT_FILE_STRING_COUNT,i);
 
 		if ( tptr ) *tptr++ = 0;
 
@@ -183,11 +194,18 @@ void load_text()
 				Error("Unsupported key sequence <\\%c> on line %d of file <%s>",p[1],i+1,filename); 
 
 			p[0] = newchar;
+			#if defined(MACOS)
+			/* The source and destination overlap; modern libc correctly rejects
+			 * the historical strcpy extension that Watcom tolerated. */
+			memmove(p+1, p+2, strlen(p+2)+1);
+			#else
 			strcpy(p+1,p+2);
+			#endif
 			p++;
 		}
  
 	}
+	#undef TEXT_FILE_STRING_COUNT
 
 //	Assert(tptr==text+len || tptr==text+len-2);
 	

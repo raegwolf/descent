@@ -219,14 +219,24 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  * 
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: playsave.c 2.3 1995/05/26 16:16:23 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: playsave.c 2.3 1995/05/26 16:16:23 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <io.h>
+#if defined(MACOS)
+#include "psstring.h"
+#else
+#endif
 
 #include "error.h"
 
@@ -245,8 +255,18 @@ static char rcsid[] = "$Id: playsave.c 2.3 1995/05/26 16:16:23 john Exp $";
 #include "text.h"
 #include "mono.h"
 #include "state.h"
+#if defined(MACOS)
+#include "bfile.h"
+#else
+#endif
 
+#if defined(MACOS)
+#define SAVE_FILE_ID			0x524c5044 //'DPLR'
+
+#define EZERO 0
+#else
 #define SAVE_FILE_ID			'DPLR'
+#endif
 
 //this is for version 5 and below
 typedef struct save_info_v5 {
@@ -266,16 +286,23 @@ typedef struct save_info {
 	int	default_leveling_on;
 } save_info;
 
+#if defined(MACOS)
+#else
 typedef struct hli {
 	char	shortname[9];
 	ubyte	level_num;
 } hli;
 
+#endif
 int n_highest_levels;
 
 hli highest_levels[MAX_MISSIONS];
 
+#if defined(MACOS)
+#define SAVED_GAME_VERSION		4		//increment this every time saved_game struct changes
+#else
 #define SAVED_GAME_VERSION		7		//increment this every time saved_game struct changes
+#endif
 
 //version 5 -> 6: added new highest level information
 //version 6 -> 7: stripped out the old saved_game array.
@@ -365,15 +392,38 @@ RetrySelection:
 int read_player_file()
 {
 	char filename[13];
+#if defined(MACOS)
+	BFILE *file;
+#else
 	FILE *file;
+#endif
 	save_info info;
 	int errno_ret = EZERO;
 
 	Assert(Player_num>=0 && Player_num<MAX_PLAYERS);
 
+#if defined(MACOS)
+	sprintf(filename,"%.8s.plr",Players[Player_num].callsign);
+#else
 	sprintf(filename,"%8s.plr",Players[Player_num].callsign);
 	file = fopen(filename,"rb");
+#endif
 
+#if defined(MACOS)
+	mprintf((0, "player read start %s\n", filename));
+
+	file = bfopen(filename,"rb");
+
+	#if 0
+	//check filename
+	if (file && isatty(fileno(file))) {
+		//if the callsign is the name of a tty device, prepend a char
+		bfclose(file);
+		sprintf(filename,"$%.7s.plr",Players[Player_num].callsign);
+		file = bfopen(filename,"rb");
+	}
+	#endif
+#else
 	//check filename
 	if (file && isatty(fileno(file))) {
 		//if the callsign is the name of a tty device, prepend a char
@@ -381,26 +431,43 @@ int read_player_file()
 		sprintf(filename,"$%.7s.plr",Players[Player_num].callsign);
 		file = fopen(filename,"rb");
 	}
+#endif
 
 	if (!file) {
 		return errno;
 	}
 
+#if defined(MACOS)
+	if (bfread(&info,sizeof(info),1,file) != 1) {
+#else
 	if (fread(&info,sizeof(info),1,file) != 1) {
+#endif
 		errno_ret = errno;
+#if defined(MACOS)
+		bfclose(file);
+#else
 		fclose(file);
+#endif
 		return errno_ret;
 	}
 
 	if (info.id!=SAVE_FILE_ID) {
 		nm_messagebox(TXT_ERROR, 1, TXT_OK, "Invalid player file");
+#if defined(MACOS)
+		bfclose(file);
+#else
 		fclose(file);
+#endif
 		return -1;
 	}
 
 	if (info.saved_game_version<COMPATIBLE_SAVED_GAME_VERSION || info.player_struct_version<COMPATIBLE_PLAYER_STRUCT_VERSION) {
 		nm_messagebox(TXT_ERROR, 1, TXT_OK, TXT_ERROR_PLR_VERSION);
+#if defined(MACOS)
+		bfclose(file);
+#else
 		fclose(file);
+#endif
 		return -1;
 	}
 
@@ -425,9 +492,17 @@ int read_player_file()
 
 		n_highest_levels = info.n_highest_levels;
 
+#if defined(MACOS)
+		if (bfread(highest_levels,sizeof(hli),n_highest_levels,file) != n_highest_levels) {
+#else
 		if (fread(highest_levels,sizeof(hli),n_highest_levels,file) != n_highest_levels) {
+#endif
 			errno_ret = errno;
+#if defined(MACOS)
+			bfclose(file);
+#else
 			fclose(file);
+#endif
 			return errno_ret;
 		}
 	}
@@ -436,19 +511,44 @@ int read_player_file()
 	Default_leveling_on = info.default_leveling_on;
 
 	if ( info.saved_game_version < 7 )	{			// Read old saved games.
+#if defined(MACOS)
+		if (bfread(saved_games,sizeof(saved_games),1,file) != 1) {
+#else
 		if (fread(saved_games,sizeof(saved_games),1,file) != 1) {
+#endif
 			errno_ret = errno;
+#if defined(MACOS)
+			bfclose(file);
+#else
 			fclose(file);
+#endif
 			return errno_ret;
 		}
 	}
 
 	//read taunt macros
+#if defined(MACOS)
+	#define SHAREWARE_MAX_MESSAGE_LEN 25
+#else
+#endif
 	{
+#if defined(MACOS)
+		int len;
+#else
 		int i,len;
+#endif
 
 		len = (info.saved_game_version == 4)?SHAREWARE_MAX_MESSAGE_LEN:MAX_MESSAGE_LEN;
 
+#if defined(MACOS)
+		#ifdef NETWORK
+		for (int i = 0; i < 4; i++)
+			if (bfread(Network_message_macro[i], len, 1, file) != 1)
+				{errno_ret = errno; break;}
+		#else
+		bfseek( file, 4*len, SEEK_CUR );
+		#endif
+#else
 		#ifdef NETWORK
 		for (i = 0; i < 4; i++)
 			if (fread(Network_message_macro[i], len, 1, file) != 1)
@@ -457,15 +557,32 @@ int read_player_file()
 		i = 0;
 		fseek( file, 48*len, SEEK_CUR );
 		#endif
+#endif
 	}
 
 	//read kconfig data
+#if defined(MACOS)
+	mprintf((0,"pre kconfig pos=%d ret=%d\n", bftell(file), errno_ret));
+#else
+#endif
 	{
+#if defined(MACOS)
+		if (bfread( kconfig_settings, MAX_CONTROLS*CONTROL_MAX_TYPES, 1, file )!=1)
+#else
 		if (fread( kconfig_settings, MAX_CONTROLS*CONTROL_MAX_TYPES, 1, file )!=1)
+#endif
 			errno_ret=errno;
+#if defined(MACOS)
+		else if (bfread(&Config_control_type, sizeof(ubyte), 1, file )!=1)
+#else
 		else if (fread(&Config_control_type, sizeof(ubyte), 1, file )!=1)
+#endif
 			errno_ret=errno;
+#if defined(MACOS)
+		else if (bfread(&Config_joystick_sensitivity, sizeof(ubyte), 1, file )!=1)
+#else
 		else if (fread(&Config_joystick_sensitivity, sizeof(ubyte), 1, file )!=1)
+#endif
 			errno_ret=errno;
 
 		if (errno_ret==EZERO)	{
@@ -473,9 +590,17 @@ int read_player_file()
 		}
 	}
 
+#if defined(MACOS)
+	mprintf((0, "player read %d ret %d\n", bftell(file), errno_ret));
+
+	if (bfclose(file) && errno_ret==EZERO)
+#else
 	if (fclose(file) && errno_ret==EZERO)
+#endif
 		errno_ret = errno;
 
+#if defined(MACOS)
+	#ifndef SHAREWARE
 	if ( info.saved_game_version == COMPATIBLE_SAVED_GAME_VERSION )		{
 		int i;
 		
@@ -490,6 +615,23 @@ int read_player_file()
 		}
 		write_player_file();
 	}
+	#endif
+#else
+	if ( info.saved_game_version == COMPATIBLE_SAVED_GAME_VERSION )		{
+		int i;
+		
+		Assert( N_SAVE_SLOTS == 10 );
+
+		for (i=0; i<N_SAVE_SLOTS; i++ )	{
+			if ( saved_games[i].name[0] )	{
+				state_save_old_game(i, saved_games[i].name, &saved_games[i].player, 
+             		saved_games[i].difficulty_level, saved_games[i].primary_weapon, 
+          			saved_games[i].secondary_weapon, saved_games[i].next_level_num );
+			}
+		}
+		write_player_file();
+	}
+#endif
 
 	return errno_ret;
 
@@ -560,7 +702,11 @@ int get_highest_level(void)
 int write_player_file()
 {
 	char filename[13];
+#if defined(MACOS)
+	BFILE *file;
+#else
 	FILE *file;
+#endif
 	save_info info;
 	int errno_ret;
 
@@ -577,8 +723,28 @@ int write_player_file()
 	info.n_highest_levels = n_highest_levels;
 
 	sprintf(filename,"%s.plr",Players[Player_num].callsign);
+#if defined(MACOS)
+#else
 	file = fopen(filename,"wb");
+#endif
 
+#if defined(MACOS)
+	mprintf((0, "player write start %s\n", filename));
+
+	file = bfopen(filename,"wb");
+
+	#if 0
+	//check filename
+	if (file && isatty(fileno(file))) {
+
+		//if the callsign is the name of a tty device, prepend a char
+
+		bfclose(file);
+		sprintf(filename,"$%.7s.plr",Players[Player_num].callsign);
+		file = bfopen(filename,"wb");
+	}
+	#endif
+#else
 	//check filename
 	if (file && isatty(fileno(file))) {
 
@@ -588,31 +754,81 @@ int write_player_file()
 		sprintf(filename,"$%.7s.plr",Players[Player_num].callsign);
 		file = fopen(filename,"wb");
 	}
+#endif
 
 	if (!file)
 		return errno;
 
 	errno_ret = EZERO;
 
+#if defined(MACOS)
+	if (bfwrite(&info,sizeof(info),1,file) != 1) {
+#else
 	if (fwrite(&info,sizeof(info),1,file) != 1) {
+#endif
 		errno_ret = errno;
+#if defined(MACOS)
+		bfclose(file);
+#else
 		fclose(file);
+#endif
 		return errno_ret;
 	}
 
+#if defined(MACOS)
+	#ifdef SHAREWARE
+	if (n_highest_levels && !highest_levels[0].shortname[0])
+		info.n_highest_levels = highest_levels[0].level_num;
+	else
+		info.n_highest_levels = 1;
+	#else
+	//write higest level info
+	if ((bfwrite(highest_levels, sizeof(hli), n_highest_levels, file) != n_highest_levels)) {
+		errno_ret = errno;
+		bfclose(file);
+		return errno_ret;
+	}
+	#endif
+#else
 	//write higest level info
 	if ((fwrite(highest_levels, sizeof(hli), n_highest_levels, file) != n_highest_levels)) {
 		errno_ret = errno;
 		fclose(file);
 		return errno_ret;
 	}
+#endif
 
+#if defined(MACOS)
+	#ifdef SHAREWARE
+	if (bfwrite(saved_games,sizeof(saved_games),1,file) != 1) {
+		errno_ret = errno;
+		bfclose(file);
+		return errno_ret;
+	}
+	#endif
+#else
 //	if (fwrite(saved_games,sizeof(saved_games),1,file) != 1) {
 //		errno_ret = errno;
 //		fclose(file);
 //		return errno_ret;
 //	}
+#endif
 
+#if defined(MACOS)
+	#ifdef NETWORK
+	if ((bfwrite(Network_message_macro, MAX_MESSAGE_LEN, 4, file) != 4)) {
+		errno_ret = errno;
+		bfclose(file);
+		return errno_ret;
+	}
+	#else
+	#ifdef SHAREWARE
+	bfseek( file, SHAREWARE_MAX_MESSAGE_LEN * 4, SEEK_CUR );
+	#else
+	bfseek( file, MAX_MESSAGE_LEN * 4, SEEK_CUR );
+	#endif
+	#endif
+#else
 	#ifdef NETWORK
 	if ((fwrite(Network_message_macro, MAX_MESSAGE_LEN, 4, file) != 4)) {
 		errno_ret = errno;
@@ -622,25 +838,51 @@ int write_player_file()
 	#else
 	fseek( file, MAX_MESSAGE_LEN * 4, SEEK_CUR );
 	#endif
+#endif
 
+#if defined(MACOS)
+	mprintf((0,"pre kconfig pos=%d ret=%d\n", bftell(file), errno_ret));
+#else
+#endif
 	//write kconfig info
 	{
+#if defined(MACOS)
+		if (bfwrite( kconfig_settings, MAX_CONTROLS*CONTROL_MAX_TYPES, 1, file )!=1)
+#else
 		if (fwrite( kconfig_settings, MAX_CONTROLS*CONTROL_MAX_TYPES, 1, file )!=1)
+#endif
 			errno_ret=errno;
+#if defined(MACOS)
+		else if (bfwrite( &Config_control_type, sizeof(ubyte), 1, file )!=1)
+#else
 		else if (fwrite( &Config_control_type, sizeof(ubyte), 1, file )!=1)
+#endif
 			errno_ret=errno;
+#if defined(MACOS)
+		else if (bfwrite( &Config_joystick_sensitivity, sizeof(ubyte), 1, file )!=1)
+#else
 		else if (fwrite( &Config_joystick_sensitivity, sizeof(ubyte), 1, file )!=1)
+#endif
 			errno_ret=errno;
 	}
 
+#if defined(MACOS)
+	mprintf((0, "player written %d\n", bftell(file)));
+
+	if (bfclose(file))
+#else
 	if (fclose(file))
+#endif
 		errno_ret = errno;
 
 	if (errno_ret != EZERO) {
 		remove(filename);			//delete bogus file
 		nm_messagebox(TXT_ERROR, 1, TXT_OK, "%s\n\n%s",TXT_ERROR_WRITING_PLR, strerror(errno_ret));
 	}
+#if defined(MACOS)
+#else
 		
+#endif
 
 	return errno_ret;
 
@@ -720,6 +962,10 @@ int get_game_list(char *game_text[N_SAVE_SLOTS])
 		if (saved_games[i].name[0])
 			count++;
 	}
+#if defined(MACOS)
+	mprintf((0, "get_game_list ret=%d count=%d\n", ret, count));
+#else
+#endif
 
 	return (ret==EZERO)?count:-1;		//-1 means new file was created
 

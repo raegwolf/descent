@@ -70,7 +70,11 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 extern	int prevmod(int val,int modulus);
 extern	int succmod(int val,int modulus);
+#if defined(MACOS)
+extern	void texture_map_flat(g3ds_tmap *t);
+#else
 extern	void texture_map_flat(g3ds_tmap *t,int color);
+#endif
 
 extern fix compute_dx_dy(g3ds_tmap *t, int top_vertex,int bottom_vertex, fix recip_dy);
 extern void compute_y_bounds(g3ds_tmap *t, int *vlt, int *vlb, int *vrt, int *vrb,int *bottom_y_ind);
@@ -78,7 +82,11 @@ extern void asm_tmap_scanline_flat(void);
 extern void asm_tmap_scanline_matt(void);
 extern void asm_tmap_scanline_lin_v(void);
 
+#if defined(MACOS)
+extern int	fx_y,fx_xleft,fx_xright;
+#else
 extern int	fx_y,fx_xleft,fx_xright,per2_flag;
+#endif
 extern unsigned char tmap_flat_color;
 extern unsigned char *pixptr;
 
@@ -98,21 +106,38 @@ extern	void asm_tmap_scanline_lin_sky(void);
 extern	void asm_tmap_scanline_lin_sky_v(void);
 
 extern fix compute_dx_dy_lin(g3ds_tmap *t,int vlt,int vlb, fix recip_dy);
+#if defined(MACOS)
+#else
 extern fix compute_dx_dy_lin(g3ds_tmap *t,int vrt,int vrb, fix recip_dy);
+#endif
 extern fix compute_du_dy_lin(g3ds_tmap *t,int vlt,int vlb, fix recip_dy);
+#if defined(MACOS)
+#else
 extern fix compute_du_dy_lin(g3ds_tmap *t,int vrt,int vrb, fix recip_dy);
+#endif
 extern fix compute_dv_dy_lin(g3ds_tmap *t,int vlt,int vlb, fix recip_dy);
+#if defined(MACOS)
+#else
 extern fix compute_dv_dy_lin(g3ds_tmap *t,int vrt,int vrb, fix recip_dy);
+#endif
 
 
 // Interface variables to assembler code
 extern	fix	fx_u,fx_v,fx_z,fx_du_dx,fx_dv_dx,fx_dz_dx;
 extern	fix	fx_dl_dx,fx_l;
 extern	int	fx_r,fx_g,fx_b,fx_dr_dx,fx_dg_dx,fx_db_dx;
+#if defined(MACOS)
+#else
 extern	unsigned char *pixptr;
+#endif
 
 extern	int	bytes_per_row;
+#if defined(MACOS)
+/* Native pointer replacement for the DOS assembler's 32-bit address. */
+extern	ubyte	*write_buffer;
+#else
 extern	int	write_buffer;
+#endif
 extern	int  	window_left;
 extern	int	window_right;
 extern	int	window_top;
@@ -127,14 +152,20 @@ extern	int	Interlacing_on;
 extern	short	_pixel_data_selector;
 
 extern ubyte * tmap_flat_cthru_table;
+#if defined(MACOS)
+#else
 extern ubyte tmap_flat_color;
+#endif
 extern ubyte tmap_flat_shade_value;
 
 
 extern fix fix_recip[];
 
+#if defined(MACOS)
+#else
 extern void init_interface_vars_to_assembler(void);
 extern int prevmod(int val,int modulus);
+#endif
 
 #define FIX_RECIP_TABLE_SIZE	321
 

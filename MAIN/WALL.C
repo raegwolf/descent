@@ -104,9 +104,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: wall.c 2.1 1995/03/21 14:39:04 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: wall.c 2.1 1995/03/21 14:39:04 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -118,7 +124,13 @@ static char rcsid[] = "$Id: wall.c 2.1 1995/03/21 14:39:04 john Exp $";
 #include "wall.h"
 #include "switch.h"
 #include "inferno.h"
+#if defined(MACOS)
+#ifdef EDITOR
 #include "editor\editor.h"
+#endif
+#else
+#include "editor\editor.h"
+#endif
 #include "segment.h"
 #include "error.h"
 #include "gameseg.h"
@@ -139,6 +151,11 @@ static char rcsid[] = "$Id: wall.c 2.1 1995/03/21 14:39:04 john Exp $";
 #define	BOSS_LOCKED_DOOR_LEVEL	7
 #define	BOSS_LOCKED_DOOR_SEG		595
 #define	BOSS_LOCKED_DOOR_SIDE	5
+#if defined(MACOS)
+
+void kill_stuck_objects(int wallnum);
+#else
+#endif
 
 wall Walls[MAX_WALLS];					// Master walls array
 int Num_walls=0;							// Number of walls
@@ -874,7 +891,11 @@ int wall_hit_process(segment *seg, int side, fix damage, int playernum, object *
 			return WHP_NO_KEY;
 		}
 
+#if defined(MACOS)
+	if (w->type == WALL_DOOR) {
+#else
 	if (w->type == WALL_DOOR)
+#endif
 		if ((w->flags & WALL_DOOR_LOCKED ) && !(special_boss_opening_allowed(seg-Segments, side)) ) {
 			if ( playernum==Player_num )
 				if (show_message)
@@ -893,6 +914,10 @@ int wall_hit_process(segment *seg, int side, fix damage, int playernum, object *
 			return WHP_DOOR;
 			
 		}
+#if defined(MACOS)
+	}
+#else
+#endif
 
 	return WHP_NOT_SPECIAL;		//default is treat like normal wall
 }
@@ -1046,5 +1071,4 @@ void kill_stuck_objects(int wallnum)
 		} else if (Stuck_objects[i].wallnum != -1)
 			Num_stuck_objects++;
 }
-
 

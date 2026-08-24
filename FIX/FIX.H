@@ -69,8 +69,17 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 #include "types.h"
 
+#if defined(MACOS)
+#include <stdint.h>
+#endif
+
+#if defined(MACOS)
+typedef int32_t fix;            //16 bits int, 16 bits frac
+typedef int16_t fixang;         //angles
+#else
 typedef long fix;				//16 bits int, 16 bits frac
 typedef short fixang;		//angles
+#endif
 
 //Convert an int to a fix
 #define i2f(i) ((i)<<16)
@@ -104,29 +113,64 @@ typedef short fixang;		//angles
 #define F0_5 	f0_5
 #define F0_1 	f0_1
 
+#if defined(MACOS)
+static __inline__ fix fixmul(fix a,fix b)
+{
+	return (fix)(((int64_t)a * (int64_t)b) >> 16);
+}
+#else
 fix fixmul(fix a,fix b);
+#endif
+#ifdef __WATCOMC__
 #pragma aux fixmul parm [eax] [edx] = \
 	"imul	edx"				\
 	"shrd	eax,edx,16";
+#endif
 
 
+#if defined(MACOS)
+static __inline__ fix fixdiv(fix a,fix b)
+{
+	return (fix)(((int64_t)a * 65536) / b);
+}
+#else
 fix fixdiv(fix a,fix b);
+#endif
+#ifdef __WATCOMC__
 #pragma aux fixdiv parm [eax] [ebx] modify exact [eax edx] = \
 	"mov	edx,eax"	\
 	"sar	edx,16"	\
 	"shl	eax,16"	\
 	"idiv	ebx";
+#endif
 
+#if defined(MACOS)
+static __inline__ fix fixmuldiv(fix a,fix b,fix c)
+{
+	return (fix)(((int64_t)a * (int64_t)b) / c);
+}
+#else
 fix fixmuldiv(fix a,fix b,fix c);
+#endif
+#ifdef __WATCOMC__
 #pragma aux fixmuldiv parm [eax] [edx] [ebx] modify exact [eax edx] = \
 	"imul	edx"	\
 	"idiv	ebx";
+#endif
 
 //computes the square root of a long, returning a short
+#if defined(MACOS)
+ushort long_sqrt(int32_t a);
+#else
 ushort long_sqrt(long a);
+#endif
 
 //computes the square root of a quad, returning a long
+#if defined(MACOS)
+int32_t quad_sqrt(uint32_t low,int32_t high);
+#else
 ulong quad_sqrt(long low,long high);
+#endif
 
 //computes the square root of a fix, returning a fix
 fix fix_sqrt(fix a);
@@ -147,6 +191,27 @@ fixang fix_acos(fix v);
 //NOTE: this is different from the standard C atan2, since it is left-handed.
 fixang fix_atan2(fix cos,fix sin); 
 
+#if defined(MACOS)
+/* Portable form of the EDX:EAX accumulator used by FIX.ASM. */
+typedef union quad {
+	struct {
+		uint32_t low;
+		int32_t high;
+	};
+	int64_t large;
+} quad;
+
+static __inline__ void fixquadinit(quad *q) { q->large = 0; }
+static __inline__ void fixquadnegate(quad *q) { q->large = -q->large; }
+static __inline__ void fixmulaccum(quad *q,fix a,fix b)
+{
+	q->large += (int64_t)a * (int64_t)b;
+}
+static __inline__ fix fixquadadjust(quad *q) { return (fix)(q->large >> 16); }
+long fixdivquadlong(ulong qlow,ulong qhigh,ulong d);
+#endif
+
+#ifdef __WATCOMC__
 #pragma aux fix_fastsincos parm [eax] [esi] [edi] modify exact [eax ebx];
 #pragma aux fix_sincos parm [eax] [esi] [edi] modify exact [eax ebx];
 
@@ -156,5 +221,6 @@ fixang fix_atan2(fix cos,fix sin);
 #pragma aux long_sqrt "*" parm [eax] value [ax] modify [];
 #pragma aux fix_sqrt "*" parm [eax] value [eax] modify [];
 #pragma aux quad_sqrt "*" parm [eax] [edx] value [eax] modify [];
+#endif
 
 #endif

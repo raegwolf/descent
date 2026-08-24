@@ -688,9 +688,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: newdemo.c 2.7 1995/05/26 16:16:06 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: newdemo.c 2.7 1995/05/26 16:16:06 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <dos.h>
 #include <stdlib.h>
@@ -1012,7 +1018,11 @@ void nd_write_shortpos(object *obj)
 	nd_write_short(sp.velz);
 }
 
+#if defined(MACOS)
+static void nd_read_byte(ubyte *b)
+#else
 static void nd_read_byte(byte *b)
+#endif
 {
 	newdemo_read(b, 1, 1);
 }
@@ -1029,7 +1039,11 @@ static void nd_read_int(int *i)
 
 static void nd_read_string(char *str)
 {
+#if defined(MACOS)
+	ubyte len;
+#else
 	byte len;
+#endif
 
 	nd_read_byte(&len);
 	newdemo_read(str, len, 1);
@@ -1048,7 +1062,11 @@ static void nd_read_fixang(fixang *f)
 static void nd_read_vector(vms_vector *v)
 {
   	nd_read_fix(&(v->x));
+#if defined(MACOS)
+  	nd_read_fix(&(v->y));
+#else
    nd_read_fix(&(v->y));
+#endif
 	nd_read_fix(&(v->z));
 }
 
@@ -1068,7 +1086,11 @@ static void nd_read_shortpos(object *obj)
 	render_type = obj->render_type;
 	if (((render_type == RT_POLYOBJ) || (render_type == RT_HOSTAGE) || (render_type == RT_MORPH)) || (obj->type == OBJ_CAMERA)) {
 		for (i = 0; i < 9; i++)
+#if defined(MACOS)
+			nd_read_byte((ubyte*)&(sp.bytemat[i]));
+#else
 			nd_read_byte(&(sp.bytemat[i]));
+#endif
 	}
 
 	nd_read_short(&(sp.xo));
@@ -1287,7 +1309,11 @@ void nd_read_object(object *obj)
 		case RT_HOSTAGE:
 			nd_read_int(&(obj->rtype.vclip_info.vclip_num));
 			nd_read_fix(&(obj->rtype.vclip_info.frametime));
+#if defined(MACOS)
+			nd_read_byte((ubyte*)&(obj->rtype.vclip_info.framenum));
+#else
 			nd_read_byte(&(obj->rtype.vclip_info.framenum));
+#endif
 			break;
 
 		case RT_LASER:
@@ -1932,9 +1958,21 @@ void newdemo_set_new_level(int level_num)
 
 int newdemo_read_demo_start(int rnd_demo)
 {
+#if defined(MACOS)
+	ubyte version, game_type;
+	#ifndef SHAREWARE
+	int laser_level;
+	#endif
+	ubyte c, energy, shield;
+	char text[50];
+	#ifndef SHAREWARE
+	char current_mission[9];
+	#endif
+#else
 	byte i, version, game_type, laser_level;
 	char c, energy, shield;
 	char text[50], current_mission[9];
+#endif
 
 	nd_read_byte(&c);
 	if ((c != ND_EVENT_START_DEMO) || nd_bad_read) {
@@ -1981,6 +2019,77 @@ int newdemo_read_demo_start(int rnd_demo)
 	}
 #endif
 
+#if defined(MACOS)
+#ifdef NETWORK
+	change_playernum_to((Newdemo_game_mode >> 16) & 0x7);
+#ifdef SHAREWARE
+	if (Newdemo_game_mode & GM_TEAM)
+		nd_read_byte(&(Netgame.team_vector));
+
+	for (int i =0 ; i < MAX_PLAYERS; i++) {
+ 		Players[i].cloak_time = 0;
+ 		Players[i].invulnerable_time = 0;
+	}
+#else
+	if (Newdemo_game_mode & GM_TEAM) {
+		nd_read_byte(&(Netgame.team_vector));
+		nd_read_string(Netgame.team_name[0]);
+		nd_read_string(Netgame.team_name[1]);
+	}
+	if (Newdemo_game_mode & GM_MULTI) {
+
+		multi_new_game();
+		nd_read_byte((byte *)&N_players);
+		for (int i = 0 ; i < N_players; i++) {
+			Players[i].cloak_time = 0;
+			Players[i].invulnerable_time = 0;
+			nd_read_string(Players[i].callsign);
+			nd_read_byte(&(Players[i].connected));
+
+			if (Newdemo_game_mode & GM_MULTI_COOP) {
+				nd_read_int(&(Players[i].score));
+			} else {
+				nd_read_short((short *)&(Players[i].net_killed_total));
+				nd_read_short((short *)&(Players[i].net_kills_total));
+			}
+		}
+		Game_mode = Newdemo_game_mode;
+		multi_sort_kill_list();
+		Game_mode = GM_NORMAL;
+	} else
+#endif
+		nd_read_int(&(Players[Player_num].score));		// Note link to above if!
+
+	for (int i = 0; i < MAX_PRIMARY_WEAPONS; i++)
+		nd_read_short((short*)&(Players[Player_num].primary_ammo[i]));
+
+	for (int i = 0; i < MAX_SECONDARY_WEAPONS; i++)
+			nd_read_short((short*)&(Players[Player_num].secondary_ammo[i]));
+
+	nd_read_byte(&laser_level);
+	if (laser_level != Players[Player_num].laser_level) {
+		Players[Player_num].laser_level = laser_level;
+		update_laser_weapon_info();
+	}
+
+// Support for missions
+
+	nd_read_string(current_mission);
+#ifdef DEST_SAT
+	if (!strcmp(current_mission, ""))
+		strcpy(current_mission, "DESTSAT");
+#endif
+	if (!load_mission_by_name(current_mission)) {
+		newmenu_item m[1];
+
+		sprintf(text, TXT_NOMISSION4DEMO, current_mission);
+		m[ 0].type = NM_TYPE_TEXT; m[ 0].text = text;
+		newmenu_do( NULL, NULL, sizeof(m)/sizeof(*m), m, NULL );
+		return 1;
+	}
+
+#endif
+#else
 #ifdef NETWORK
 	change_playernum_to((Newdemo_game_mode >> 16) & 0x7);
 #ifdef SHAREWARE
@@ -2050,6 +2159,7 @@ int newdemo_read_demo_start(int rnd_demo)
 	}
 
 #endif
+#endif
 
 	nd_recorded_total = 0;
 	nd_playback_total = 0;
@@ -2064,8 +2174,13 @@ int newdemo_read_demo_start(int rnd_demo)
 	if (Players[Player_num].flags & PLAYER_FLAGS_INVULNERABLE)
 		Players[Player_num].invulnerable_time = GameTime - (INVULNERABLE_TIME_MAX / 2);
 
+#if defined(MACOS)
+	nd_read_byte((ubyte*)&Primary_weapon);
+	nd_read_byte((ubyte*)&Secondary_weapon);
+#else
 	nd_read_byte((byte *)&Primary_weapon);
 	nd_read_byte((byte *)&Secondary_weapon);
+#endif
 
 // Next bit of code to fix problem that I introduced between 1.0 and 1.1
 // check the next byte -- it _will_ be a load_new_level event.  If it is
@@ -2401,7 +2516,11 @@ int newdemo_read_frame_information()
 			oflags = Players[Player_num].flags >> 16;
 			Players[Player_num].flags &= 0xffff;
 
+#if defined(MACOS)
+			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD && oflags != 0xffff)) {
+#else
 			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD) && (oflags != 0xffff)) {
+#endif
 				if (!(oflags & PLAYER_FLAGS_CLOAKED) && (Players[Player_num].flags & PLAYER_FLAGS_CLOAKED)) {
 					Players[Player_num].cloak_time = 0;
 					Newdemo_players_cloaked &= ~(1 << Player_num);
@@ -2433,6 +2552,44 @@ int newdemo_read_frame_information()
 			break;
 		}
 
+#if defined(MACOS)
+#ifdef SHAREWARE
+		case ND_EVENT_PLAYER_WEAPON: {
+			ubyte weapon_type, weapon_num;
+
+			nd_read_byte(&weapon_type);
+			nd_read_byte(&weapon_num);
+
+			if (weapon_type == 0)
+				Primary_weapon = (int)weapon_num;
+			else
+				Secondary_weapon = (int)weapon_num;
+
+			break;
+		}
+#else
+		case ND_EVENT_PLAYER_WEAPON: {
+			byte weapon_type, weapon_num;
+			byte old_weapon;
+
+			nd_read_byte(&weapon_type);
+			nd_read_byte(&weapon_num);
+			nd_read_byte(&old_weapon);
+			if ((Newdemo_vcr_state == ND_STATE_PLAYBACK) || (Newdemo_vcr_state == ND_STATE_FASTFORWARD) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEFORWARD)) {
+				if (weapon_type == 0)
+					Primary_weapon = (int)weapon_num;
+				else
+					Secondary_weapon = (int)weapon_num;
+			} else if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD)) {
+				if (weapon_type == 0)
+					Primary_weapon = (int)old_weapon;
+				else
+					Secondary_weapon = (int)old_weapon;
+			}
+			break;
+		}
+#endif
+#else
 #ifdef SHAREWARE
 		case ND_EVENT_PLAYER_WEAPON: {
 			byte weapon_type, weapon_num;
@@ -2469,11 +2626,16 @@ int newdemo_read_frame_information()
 			break;
 		}
 #endif
+#endif
 
 
 		case ND_EVENT_EFFECT_BLOWUP: {
 			short segnum;
+#if defined(MACOS)
+			ubyte side;
+#else
 			byte side;
+#endif
 			vms_vector pnt;
 
 			nd_read_short(&segnum);
@@ -2569,7 +2731,11 @@ int newdemo_read_frame_information()
 		}
 
 		case ND_EVENT_MULTI_CLOAK: {
+#if defined(MACOS)
+			ubyte pnum;
+#else
 			byte pnum;
+#endif
 
 			nd_read_byte(&pnum);
 			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD)) {
@@ -2585,7 +2751,11 @@ int newdemo_read_frame_information()
 		}
 
 		case ND_EVENT_MULTI_DECLOAK: {
+#if defined(MACOS)
+			ubyte pnum;
+#else
 			byte pnum;
+#endif
 
 			nd_read_byte(&pnum);
 
@@ -2601,6 +2771,192 @@ int newdemo_read_frame_information()
 			break;
 		}
 
+#if defined(MACOS)
+#ifndef SHAREWARE
+		case ND_EVENT_MULTI_DEATH: {
+			ubyte pnum;
+
+			nd_read_byte(&pnum);
+			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD))
+				Players[pnum].net_killed_total--;
+			else if ((Newdemo_vcr_state == ND_STATE_PLAYBACK) || (Newdemo_vcr_state == ND_STATE_FASTFORWARD) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEFORWARD))
+				Players[pnum].net_killed_total++;
+			break;
+		}
+
+		#ifdef NETWORK	
+		case ND_EVENT_MULTI_KILL: {
+			ubyte pnum, kill;
+
+			nd_read_byte(&pnum);
+			nd_read_byte(&kill);
+			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD)) {
+				Players[pnum].net_kills_total -= kill;
+ 				if (Newdemo_game_mode & GM_TEAM)
+ 					team_kills[get_team(pnum)] -= kill;
+ 			} else if ((Newdemo_vcr_state == ND_STATE_PLAYBACK) || (Newdemo_vcr_state == ND_STATE_FASTFORWARD) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEFORWARD)) {
+				Players[pnum].net_kills_total += kill;
+ 				if (Newdemo_game_mode & GM_TEAM)
+ 					team_kills[get_team(pnum)] += kill;
+			}
+			Game_mode = Newdemo_game_mode;
+			multi_sort_kill_list();
+			Game_mode = GM_NORMAL;
+			break;
+		}
+		
+		case ND_EVENT_MULTI_CONNECT: {
+			ubyte pnum, new_player;
+			int killed_total, kills_total;
+			char new_callsign[CALLSIGN_LEN+1], old_callsign[CALLSIGN_LEN+1];
+
+			nd_read_byte(&pnum);
+			nd_read_byte(&new_player);
+			if (!new_player) {
+				nd_read_string(old_callsign);
+				nd_read_int(&killed_total);
+				nd_read_int(&kills_total);
+			}
+			nd_read_string(new_callsign);
+			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD)) {
+				Players[pnum].connected = 0;
+				if (!new_player) {
+					memcpy(Players[pnum].callsign, old_callsign, CALLSIGN_LEN+1);
+					Players[pnum].net_killed_total = killed_total;
+					Players[pnum].net_kills_total = kills_total;
+				} else {
+					N_players--;
+				}
+			} else if ((Newdemo_vcr_state == ND_STATE_PLAYBACK) || (Newdemo_vcr_state == ND_STATE_FASTFORWARD) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEFORWARD)) {
+				Players[pnum].connected = 1;
+				Players[pnum].net_kills_total = 0;
+				Players[pnum].net_killed_total = 0;
+				memcpy(Players[pnum].callsign, new_callsign, CALLSIGN_LEN+1);
+				if (new_player)
+					N_players++;
+			}
+			break;
+		}
+
+		case ND_EVENT_MULTI_RECONNECT: {
+			ubyte pnum;
+
+			nd_read_byte(&pnum);
+			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD))
+				Players[pnum].connected = 0;
+			else if ((Newdemo_vcr_state == ND_STATE_PLAYBACK) || (Newdemo_vcr_state == ND_STATE_FASTFORWARD) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEFORWARD))
+				Players[pnum].connected = 1;
+			break;
+		}
+
+		case ND_EVENT_MULTI_DISCONNECT: {
+			ubyte pnum;
+
+			nd_read_byte(&pnum);
+			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD))
+				Players[pnum].connected = 1;
+			else if ((Newdemo_vcr_state == ND_STATE_PLAYBACK) || (Newdemo_vcr_state == ND_STATE_FASTFORWARD) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEFORWARD))
+				Players[pnum].connected = 0;
+			break;
+		}
+
+		case ND_EVENT_MULTI_SCORE: {
+			int score;
+			ubyte pnum;
+
+			nd_read_byte(&pnum);
+			nd_read_int(&score);
+			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD))
+				Players[pnum].score -= score;
+			else if ((Newdemo_vcr_state == ND_STATE_PLAYBACK) || (Newdemo_vcr_state == ND_STATE_FASTFORWARD) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEFORWARD))
+				Players[pnum].score += score;
+			Game_mode = Newdemo_game_mode;
+			multi_sort_kill_list();
+			Game_mode = GM_NORMAL;
+			break;
+		}
+		#endif
+
+		case ND_EVENT_PLAYER_SCORE: {
+			int score;
+
+			nd_read_int(&score);
+			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD))
+				Players[Player_num].score -= score;
+			else if ((Newdemo_vcr_state == ND_STATE_PLAYBACK) || (Newdemo_vcr_state == ND_STATE_FASTFORWARD) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEFORWARD))
+				Players[Player_num].score += score;
+			break;
+		}
+
+
+		case ND_EVENT_PRIMARY_AMMO: {
+			short old_ammo, new_ammo;
+
+			nd_read_short(&old_ammo);
+			nd_read_short(&new_ammo);
+
+			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD))
+				Players[Player_num].primary_ammo[Primary_weapon] = old_ammo;
+			else if ((Newdemo_vcr_state == ND_STATE_PLAYBACK) || (Newdemo_vcr_state == ND_STATE_FASTFORWARD) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEFORWARD))
+				Players[Player_num].primary_ammo[Primary_weapon] = new_ammo;
+			break;
+		}
+
+		case ND_EVENT_SECONDARY_AMMO: {
+			short old_ammo, new_ammo;
+
+			nd_read_short(&old_ammo);
+			nd_read_short(&new_ammo);
+
+			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD))
+				Players[Player_num].secondary_ammo[Secondary_weapon] = old_ammo;
+			else if ((Newdemo_vcr_state == ND_STATE_PLAYBACK) || (Newdemo_vcr_state == ND_STATE_FASTFORWARD) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEFORWARD))
+				Players[Player_num].secondary_ammo[Secondary_weapon] = new_ammo;
+			break;
+		}
+
+		case ND_EVENT_DOOR_OPENING: {
+			short segnum;
+			ubyte side;
+
+			nd_read_short(&segnum);
+			nd_read_byte(&side);
+			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD)) {
+				int anim_num;
+				int cside;
+				segment *segp, *csegp;
+
+				segp = &Segments[segnum];
+				csegp = &Segments[segp->children[side]];
+				cside = find_connect_side(segp, csegp);
+				anim_num = Walls[segp->sides[side].wall_num].clip_num;
+
+				if (WallAnims[anim_num].flags & WCF_TMAP1)	{
+					segp->sides[side].tmap_num = csegp->sides[cside].tmap_num = WallAnims[anim_num].frames[0];
+				} else	{
+					segp->sides[side].tmap_num2 = csegp->sides[cside].tmap_num2 = WallAnims[anim_num].frames[0];
+				}
+			}
+			break;
+		}
+
+		case ND_EVENT_LASER_LEVEL: {
+			byte old_level, new_level;
+
+			nd_read_byte(&old_level);
+			nd_read_byte(&new_level);
+			if ((Newdemo_vcr_state == ND_STATE_REWINDING) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEBACKWARD)) {
+				Players[Player_num].laser_level = old_level;
+				update_laser_weapon_info();
+			} else if ((Newdemo_vcr_state == ND_STATE_PLAYBACK) || (Newdemo_vcr_state == ND_STATE_FASTFORWARD) || (Newdemo_vcr_state == ND_STATE_ONEFRAMEFORWARD)) {
+				Players[Player_num].laser_level = new_level;
+				update_laser_weapon_info();
+			}
+			break;
+		}
+
+#endif
+#else
 #ifndef SHAREWARE
 		case ND_EVENT_MULTI_DEATH: {
 			byte pnum;
@@ -2785,12 +3141,18 @@ int newdemo_read_frame_information()
 		}
 
 #endif
+#endif
 
 		case ND_EVENT_NEW_LEVEL: 	{
 			byte new_level, old_level, loaded_level;
  
+#if defined(MACOS)
+			nd_read_byte ((ubyte*)&new_level);
+			nd_read_byte ((ubyte*)&old_level);
+#else
 			nd_read_byte (&new_level);
 			nd_read_byte (&old_level);
+#endif
 			if (Newdemo_vcr_state == ND_STATE_PAUSED)
 				break;
 
@@ -2888,6 +3250,142 @@ void newdemo_goto_beginning()
 	Newdemo_at_eof = 0;
 }
 
+#if defined(MACOS)
+#ifdef SHAREWARE
+#define LAST_SECRET_LEVEL 0
+#define LAST_LEVEL 7
+void newdemo_goto_end()
+{
+	short frame_length;
+	byte level;
+	int i;
+
+	fseek(infile, -2, SEEK_END);
+	nd_read_byte((ubyte*)&level);
+	if ((level < LAST_SECRET_LEVEL) || (level > LAST_LEVEL)) {
+		newmenu_item m[3];
+
+		m[ 0].type = NM_TYPE_TEXT; m[ 0].text = TXT_CANT_PLAYBACK;
+		m[ 1].type = NM_TYPE_TEXT; m[ 1].text = TXT_LEVEL_CANT_LOAD;
+		m[ 2].type = NM_TYPE_TEXT; m[ 2].text = TXT_DEMO_OLD_CORRUPT;
+		newmenu_do( NULL, NULL, sizeof(m)/sizeof(*m), m, NULL );
+		newdemo_stop_playback();
+		return;
+	}
+	if (level != Current_level_num)	{
+		LoadLevel(level);
+		piggy_load_level_data();
+	}
+	if (Newdemo_game_mode & GM_MULTI) {
+		fseek(infile, -10, SEEK_END);
+		nd_read_byte((ubyte*)&Newdemo_players_cloaked);
+		for (i = 0; i < MAX_PLAYERS; i++) {
+			if ((1 << i) & Newdemo_players_cloaked) {
+				Players[i].flags |= PLAYER_FLAGS_CLOAKED;
+				Players[i].cloak_time = GameTime - (CLOAK_TIME_MAX / 2);
+			}
+		}
+	}
+	fseek(infile, -12, SEEK_END);
+	nd_read_short(&frame_length);
+	fseek(infile, -frame_length, SEEK_CUR);
+	nd_read_int(&NewdemoFrameCount);				// get the frame count
+	NewdemoFrameCount--;
+	fseek(infile, 4, SEEK_CUR);
+	newdemo_read_frame_information();			// then the frame information
+	Newdemo_vcr_state = ND_STATE_PAUSED;
+	return;
+}
+#else
+void newdemo_goto_end()
+{
+	short frame_length, byte_count, bshort;
+	byte level, bbyte, laser_level;
+	ubyte energy, shield;
+	int i, loc, bint;
+
+	fseek(infile, -2, SEEK_END);
+	nd_read_byte(&level);
+
+	if ((level < Last_secret_level) || (level > Last_level)) {
+		newmenu_item m[3];
+
+		m[ 0].type = NM_TYPE_TEXT; m[ 0].text = TXT_CANT_PLAYBACK;
+		m[ 1].type = NM_TYPE_TEXT; m[ 1].text = TXT_LEVEL_CANT_LOAD;
+		m[ 2].type = NM_TYPE_TEXT; m[ 2].text = TXT_DEMO_OLD_CORRUPT;
+		newmenu_do( NULL, NULL, sizeof(m)/sizeof(*m), m, NULL );
+		newdemo_stop_playback();
+		return;
+	}
+	if (level != Current_level_num)	{
+		LoadLevel(level);
+		piggy_load_level_data();
+	}
+	fseek(infile, -4, SEEK_END);
+	nd_read_short(&byte_count);
+	fseek(infile, -2 - byte_count, SEEK_CUR);
+
+	nd_read_short(&frame_length);
+	loc = ftell(infile);
+	if (Newdemo_game_mode & GM_MULTI)
+		nd_read_byte(&Newdemo_players_cloaked);
+	else
+		nd_read_byte(&bbyte);
+	nd_read_byte(&bbyte);
+	nd_read_short(&bshort);
+	nd_read_int(&bint);
+	
+	nd_read_byte(&energy);
+	nd_read_byte(&shield);
+	Players[Player_num].energy = i2f(energy);
+	Players[Player_num].shields = i2f(shield);
+	nd_read_int((int *)&(Players[Player_num].flags));
+	if (Players[Player_num].flags & PLAYER_FLAGS_CLOAKED) {
+		Players[Player_num].cloak_time = GameTime - (CLOAK_TIME_MAX / 2);
+		Newdemo_players_cloaked |= (1 << Player_num);
+	}
+	if (Players[Player_num].flags & PLAYER_FLAGS_INVULNERABLE)
+		Players[Player_num].invulnerable_time = GameTime - (INVULNERABLE_TIME_MAX / 2);
+	nd_read_byte((byte *)&Primary_weapon);
+	nd_read_byte((byte *)&Secondary_weapon);
+	for (i = 0; i < MAX_PRIMARY_WEAPONS; i++)
+		nd_read_short((short *)&(Players[Player_num].primary_ammo[i]));	
+	for (i = 0; i < MAX_SECONDARY_WEAPONS; i++)
+		nd_read_short((short *)&(Players[Player_num].secondary_ammo[i]));	
+	nd_read_byte(&laser_level);
+	if (laser_level != Players[Player_num].laser_level) {
+		Players[Player_num].laser_level = laser_level;
+		update_laser_weapon_info();
+	}
+
+	if (Newdemo_game_mode & GM_MULTI) {
+		nd_read_byte((byte *)&N_players);
+		for (i = 0; i < N_players; i++) {
+			nd_read_string(Players[i].callsign);
+			nd_read_byte(&(Players[i].connected));
+			if (Newdemo_game_mode & GM_MULTI_COOP) {
+				nd_read_int(&(Players[i].score));
+			} else {
+				nd_read_short((short *)&(Players[i].net_killed_total));
+				nd_read_short((short *)&(Players[i].net_kills_total));
+			}
+		}
+	} else {
+		nd_read_int(&(Players[Player_num].score));
+	}
+
+	fseek(infile, loc, SEEK_SET);
+	fseek(infile, -frame_length, SEEK_CUR);
+	nd_read_int(&NewdemoFrameCount);				// get the frame count
+	NewdemoFrameCount--;
+	fseek(infile, 4, SEEK_CUR);
+	Newdemo_vcr_state = ND_STATE_PLAYBACK;
+	newdemo_read_frame_information();			// then the frame information
+	Newdemo_vcr_state = ND_STATE_PAUSED;
+	return;
+}
+#endif
+#else
 #ifdef SHAREWARE
 void newdemo_goto_end()
 {
@@ -3018,6 +3516,7 @@ void newdemo_goto_end()
 	Newdemo_vcr_state = ND_STATE_PAUSED;
 	return;
 }
+#endif
 #endif
 
 void newdemo_back_frames(int frames)
@@ -3384,9 +3883,18 @@ void newdemo_playback_one_frame()
 
 void newdemo_start_recording()
 {
+#if defined(MACOS)
+	#if 0
 	struct diskfree_t dfree;
 	unsigned drive;
+	#endif
+#else
+	struct diskfree_t dfree;
+	unsigned drive;
+#endif
 
+#if defined(MACOS)
+	#if 0
 	_dos_getdrive(&drive);
 	if (!_dos_getdiskfree(drive, &dfree))
 		Newdemo_size = dfree.avail_clusters * dfree.sectors_per_cluster * dfree.bytes_per_sector;
@@ -3394,6 +3902,18 @@ void newdemo_start_recording()
 		Newdemo_size = ULONG_MAX;					// make be biggest it can be
 		Int3();		// get MARK A!!!!!
 	}
+	#else
+		Newdemo_size = ULONG_MAX;					// make be biggest it can be
+	#endif
+#else
+	_dos_getdrive(&drive);
+	if (!_dos_getdiskfree(drive, &dfree))
+		Newdemo_size = dfree.avail_clusters * dfree.sectors_per_cluster * dfree.bytes_per_sector;
+	else {
+		Newdemo_size = ULONG_MAX;					// make be biggest it can be
+		Int3();		// get MARK A!!!!!
+	}
+#endif
 	if (Newdemo_size < 500000) {
 		nm_messagebox(NULL, 1, TXT_OK, TXT_DEMO_NO_SPACE);
 		return;
@@ -3410,7 +3930,11 @@ char demoname_allowed_chars[] = "azAZ09__--";
 void newdemo_stop_recording()
 {
 	newmenu_item m[6];
+#if defined(MACOS)
+	int l, exit = 0;
+#else
 	int l, exit;
+#endif
 	static char filename[9] = "", *s;
 	static ubyte tmpcnt = 0;
 	ubyte cloaked = 0;
@@ -3559,18 +4083,38 @@ try_again:
 
 void newdemo_start_playback(char * filename)
 {
+#if defined(MACOS)
+	#if 1
 	struct find_t find;
+	#endif
+#else
+	struct find_t find;
+#endif
 	int rnd_demo = 0;
 
 	if (filename==NULL) {
 		// Randomly pick a filename 
+#if defined(MACOS)
+		int NumFiles = 0; //, RandFileNum;
+#else
 		int NumFiles = 0, RandFileNum;
+#endif
 		rnd_demo = 1;
+#if defined(MACOS)
+		#if 1
 		if( !_dos_findfirst( "*.DEM", _A_NORMAL, &find ) )	{
 			do	{
 				NumFiles++;
 			} while( !_dos_findnext( &find ) );
 		}
+		#endif
+#else
+		if( !_dos_findfirst( "*.DEM", _A_NORMAL, &find ) )	{
+			do	{
+				NumFiles++;
+			} while( !_dos_findnext( &find ) );
+		}
+#endif
 #ifdef USE_CD
 		if ( strlen(destsat_cdpath) )	{
 			char temp_spec[128];
@@ -3587,8 +4131,14 @@ void newdemo_start_playback(char * filename)
 		if ( NumFiles == 0 ) { 
 			return;		// No files found!
 		}
+#if defined(MACOS)
+		//RandFileNum = psrand() % NumFiles;
+#else
 		RandFileNum = rand() % NumFiles;
+#endif
 		NumFiles = 0;
+#if defined(MACOS)
+		#if 0
 		if( !_dos_findfirst( "*.DEM", _A_NORMAL, &find ) )	{
 			do	{
 				if ( NumFiles==RandFileNum )	{
@@ -3598,6 +4148,18 @@ void newdemo_start_playback(char * filename)
 				NumFiles++;
 			} while( !_dos_findnext( &find ) );
 		}
+		#endif
+#else
+		if( !_dos_findfirst( "*.DEM", _A_NORMAL, &find ) )	{
+			do	{
+				if ( NumFiles==RandFileNum )	{
+					filename = &find.name;
+					break;
+				}
+				NumFiles++;
+			} while( !_dos_findnext( &find ) );
+		}
+#endif
 #ifdef USE_CD
 		if ( strlen(destsat_cdpath) )	{
 			char temp_spec[128];
@@ -3674,10 +4236,88 @@ void newdemo_stop_playback()
 	Cockpit_mode = Newdemo_old_cockpit;
 	Game_mode = GM_GAME_OVER;
 	Function_mode = FMODE_MENU;
+#if defined(MACOS)
+	DoLeaveGame();			// Exit game loop
+#else
 	longjmp(LeaveGame,0);			// Exit game loop
+#endif
 }
 
 
+#if defined(MACOS)
+#ifndef NDEBUG
+
+#define BUF_SIZE 16384
+
+void newdemo_strip_frames(char *outname, int bytes_to_strip)
+{
+	FILE *outfile;
+	char *buf;
+	int read_elems, bytes_back;
+	int trailer_start, loc1, loc2, stop_loc, bytes_to_read;
+	short last_frame_length;
+
+	//total_size = filelength(fileno(infile));
+	outfile = fopen(outname, "wb");
+	if (outfile == NULL) {
+		newmenu_item m[1];
+
+		m[ 0].type = NM_TYPE_TEXT; m[ 0].text = "Can't open output file";
+		newmenu_do( NULL, NULL, 1, m, NULL );
+		newdemo_stop_playback();
+		return;
+	}
+	buf = malloc(BUF_SIZE);
+	if (buf == NULL) {
+		newmenu_item m[1];
+
+		m[ 0].type = NM_TYPE_TEXT; m[ 0].text = "Can't malloc output buffer";
+		newmenu_do( NULL, NULL, 1, m, NULL );
+		fclose(outfile);
+		newdemo_stop_playback();
+		return;
+	}
+	newdemo_goto_end();
+	trailer_start = ftell(infile);
+	fseek(infile, 11, SEEK_CUR);
+	bytes_back = 0;
+	while (bytes_back < bytes_to_strip) {
+		loc1 = ftell(infile);
+//		fseek(infile, -10, SEEK_CUR);
+//		nd_read_short(&last_frame_length);			
+//		fseek(infile, 8 - last_frame_length, SEEK_CUR);
+		newdemo_back_frames(1);
+		loc2 = ftell(infile);
+		bytes_back += (loc1 - loc2);
+	}
+	fseek(infile, -10, SEEK_CUR);
+	nd_read_short(&last_frame_length);
+	fseek(infile, -3, SEEK_CUR);
+	stop_loc = ftell(infile);
+	fseek(infile, 0, SEEK_SET);
+	while (stop_loc > 0) {
+		if (stop_loc < BUF_SIZE)
+			bytes_to_read = stop_loc;
+		else
+			bytes_to_read = BUF_SIZE;
+		read_elems = fread(buf, 1, bytes_to_read, infile);
+		fwrite(buf, 1, read_elems, outfile);
+		stop_loc -= read_elems;
+	}
+	stop_loc = ftell(outfile);
+	fseek(infile, trailer_start, SEEK_SET);
+	while ((read_elems = fread(buf, 1, BUF_SIZE, infile)) != 0)
+		fwrite(buf, 1, read_elems, outfile);
+	fseek(outfile, stop_loc, SEEK_SET);
+	fseek(outfile, 1, SEEK_CUR);
+	fwrite(&last_frame_length, 2, 1, outfile);
+	fclose(outfile);
+	newdemo_stop_playback();
+
+}
+
+#endif
+#else
 #ifndef NDEBUG
 
 #define BUF_SIZE 16384
@@ -3750,5 +4390,6 @@ void newdemo_strip_frames(char *outname, int bytes_to_strip)
 
 }
 
+#endif
 #endif
 

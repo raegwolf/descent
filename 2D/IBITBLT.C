@@ -45,6 +45,9 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+#include <string.h>
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: ibitblt.c 1.6 1994/11/28 17:07:29 john Exp $";
 #pragma on (unreferenced)
@@ -52,18 +55,34 @@ static char rcsid[] = "$Id: ibitblt.c 1.6 1994/11/28 17:07:29 john Exp $";
 #include <conio.h>
 #include <dos.h>
 #include <stdio.h>
+#endif
 #include <stdlib.h>
 
 #include "types.h"
 #include "gr.h"
+#if defined(MACOS)
+#else
 #include "mem.h"
 #include "error.h"
+#endif
 #include "ibitblt.h"
+#if defined(MACOS)
+#include "error.h"
+#else
+#endif
 
+#if defined(MACOS)
+#define TRANSPARENCY_COLOR 255
+#else
 #define MODE_NONE		0
 #define MODE_SKIP		1
 #define MODE_DRAW		2
+#endif
 
+#if defined(MACOS)
+#define FIND_START		1
+#define FIND_STOP		2
+#else
 #define OPCODE_ADD 			0x81			
 #define OPCODE_ESI			0xC6			// Followed by a dword	(add esi, ????)
 #define OPCODE_EDI		 	0xC7			// Followed by a dword  (add edi, ????)
@@ -73,22 +92,113 @@ static char rcsid[] = "$Id: ibitblt.c 1.6 1994/11/28 17:07:29 john Exp $";
 #define OPCODE_MOVSD 		0xA5			// movsd
 #define OPCODE_REP			0xF3			// rep
 #define OPCODE_RET			0xC3			// ret
+#endif
 
+#if defined(MACOS)
+#define MAX_WIDTH				640
+#define MAX_SCANLINES			480
+#define MAX_HOLES				5
+#else
 ubyte *Code_pointer = NULL;
 int Code_counter = 0;
+#endif
 
+#if defined(MACOS)
+static short start_points[MAX_SCANLINES][MAX_HOLES];
+static short hole_length[MAX_SCANLINES][MAX_HOLES];
+//static ubyte scanline[MAX_WIDTH];
+#else
 void move_and_count( int dsource, int ddest, int ecx )
 {
 	int blocks;
 	if ( ecx <= 0 )	
 		return;
+#endif
 
+#if defined(MACOS)
+#define gr_linear_movsd(src, dst, len) memcpy(dst, src, len)
+#else
 	if ( dsource > 0 )
 		Code_counter+=6;		// ADD ESI, dsource
+#endif
 
+#if defined(MACOS)
+#define pixel_double 0
+void gr_ibitblt(grs_bitmap *src_bmp, grs_bitmap *dest_bmp, ubyte *mask) //ubyte pixel_double)
+{
+	int x, y, sw, sh, srowsize, drowsize, dstart, sy;
+	ubyte *src, *dest;
+#else
 	if ( ddest > 0 )
 		Code_counter+=6;		// ADD EDI, ddest
+#endif
 
+#if defined(MACOS)
+// variable setup
+
+	sw = src_bmp->bm_w;
+	sh = src_bmp->bm_h;
+	srowsize = src_bmp->bm_rowsize;
+	drowsize = dest_bmp->bm_rowsize;
+	src = src_bmp->bm_data;
+	dest = dest_bmp->bm_data;
+
+	sy = 0;
+	while (start_points[sy][0] == -1) {
+		sy++;
+		dest += drowsize;
+	}
+	
+	#if 0
+ 	if (pixel_double) {
+ 		int dy;
+		short *current_hole, *current_hole_length;
+		ubyte *scan = (ubyte *)scanline;		// set up for byte processing of scanline
+		
+		dy = sy;
+		for (y = sy; y < sy + sh; y++) {
+			gr_linear_movsd_double(src, scan, sw);
+			current_hole = start_points[dy];
+			current_hole_length = hole_length[dy];
+			for (x = 0; x < MAX_HOLES; x++) {
+				if (*current_hole == -1)
+					break;
+				dstart = *current_hole;
+				gr_linear_movsd(&(scan[dstart]), &(dest[dstart]), *current_hole_length);
+				current_hole++;
+				current_hole_length++;
+			}
+			dy++;
+			dest += drowsize;
+			current_hole = start_points[dy];
+			current_hole_length = hole_length[dy];
+			for (x = 0;x < MAX_HOLES; x++) {
+				if (*current_hole == -1)
+					break;
+				dstart = *current_hole;
+				gr_linear_movsd(&(scan[dstart]), &(dest[dstart]), *current_hole_length);
+				current_hole++;
+				current_hole_length++;
+			}
+			dy++;
+			dest += drowsize;
+			src += srowsize;
+		}
+	} else
+	#endif
+	{
+		Assert(sw <= MAX_WIDTH);
+		Assert(sh <= MAX_SCANLINES);
+		for (y = sy; y < sy + sh; y++) {
+			for (x = 0; x < MAX_HOLES; x++) {
+				if (start_points[y][x] == -1)
+					break;
+				dstart = start_points[y][x];
+				gr_linear_movsd(&(src[dstart]), &(dest[dstart]), hole_length[y][x]);
+			}
+			dest += drowsize;
+			src += srowsize;
+#else
 	while ( ecx > 0 )	{
 		switch(ecx)	{
 		case 1: Code_counter++; ecx = 0; break;	// MOVSB
@@ -102,13 +212,24 @@ void move_and_count( int dsource, int ddest, int ecx )
 			else 
 				Code_counter+=7;
 			ecx -= blocks*4;
+#endif
 		}
 	}
 }
 
+#if defined(MACOS)
+ubyte *gr_ibitblt_create_mask(grs_bitmap *mask_bmp, int sx, int sy, int sw, int sh, int srowsize)
+#else
 
 void move_and_draw( int dsource, int ddest, int ecx )
+#endif
 {
+#if defined(MACOS)
+	int x, y;
+	ubyte mode;
+	int count = 0;
+	
+#else
 	int blocks;
 	int * iptr;
 
@@ -191,8 +312,15 @@ int gr_ibitblt_find_code_size( grs_bitmap * mask_bmp, int sx, int sy, int sw, in
 	int num_to_draw, draw_start_source, draw_start_dest;
 	int esi, edi;
 
+#endif
 	Assert( (!(mask_bmp->bm_flags&BM_FLAG_RLE)) );
 
+#if defined(MACOS)
+	for (y = 0; y < MAX_SCANLINES; y++) {
+		for (x = 0; x < MAX_HOLES; x++) {
+			start_points[y][x] = -1;
+			hole_length[y][x] = -1;
+#else
 	Code_counter = 0;
 
 	esi = source_offset = 0;
@@ -230,7 +358,10 @@ int gr_ibitblt_find_code_size( grs_bitmap * mask_bmp, int sx, int sy, int sw, in
 				draw_mode = MODE_DRAW;
 			}
 			source_offset++;
+#endif
 		}
+#if defined(MACOS)
+#else
 		if ( draw_mode == MODE_DRAW )	{
 			move_and_count( draw_start_source-esi, draw_start_dest-edi, num_to_draw );
 			esi = draw_start_source + num_to_draw;
@@ -238,7 +369,20 @@ int gr_ibitblt_find_code_size( grs_bitmap * mask_bmp, int sx, int sy, int sw, in
 		}
 		draw_mode = MODE_NONE;
 		source_offset += (srowsize - sw);
+#endif
 	}
+#if defined(MACOS)
+	
+	for (y = sy; y < sy+sh; y++) {
+		count = 0;
+		mode = FIND_START;
+		for (x = sx; x < sx + sw; x++) {
+			if ((mode == FIND_START) && (mask_bmp->bm_data[mask_bmp->bm_rowsize*y+x] == TRANSPARENCY_COLOR)) {
+				start_points[y][count] = x;
+				mode = FIND_STOP;
+			} else if ((mode == FIND_STOP) && (mask_bmp->bm_data[mask_bmp->bm_rowsize*y+x] != TRANSPARENCY_COLOR)) {
+				hole_length[y][count] = x - start_points[y][count];
+#else
 	Code_counter++;		// for return
 
 	//printf( "Code will be %d bytes\n", Code_counter );
@@ -365,12 +509,63 @@ void	gr_ibitblt_find_hole_size( grs_bitmap * mask_bmp, int *minx, int *miny, int
 				if ( y < *miny ) *miny = y;
 				if ( x > *maxx ) *maxx = x;
 				if ( y > *maxy ) *maxy = y;
+#endif
 				count++;
+#if defined(MACOS)
+				mode = FIND_START;
+#else
+#endif
 			}
 		}
+#if defined(MACOS)
+		if (mode == FIND_STOP) {
+			hole_length[y][count] = x - start_points[y][count];
+			count++;
+		}
+		Assert(count <= MAX_HOLES);
+#else
 
 	if ( count == 0 )	{
 		Error( "Bitmap for ibitblt doesn't have transparency!\n" );
+#endif
 	}
+#if defined(MACOS)
+	return malloc(1);
+#else
+#endif
 }
+#if defined(MACOS)
+
+void gr_ibitblt_find_hole_size(grs_bitmap *mask_bmp, int *minx, int *miny, int *maxx, int *maxy)
+{
+	ubyte c;
+	int x, y, count = 0;
+	
+	Assert( (!(mask_bmp->bm_flags&BM_FLAG_RLE)) );
+	Assert( mask_bmp->bm_flags&BM_FLAG_TRANSPARENT );
+	
+	*minx = mask_bmp->bm_w - 1;
+	*maxx = 0;
+	*miny = mask_bmp->bm_h - 1;
+	*maxy = 0;
+
+	//if (scanline == NULL)
+	//	scanline = malloc(MAX_WIDTH / sizeof(double)));
+		
+	for (y = 0; y < mask_bmp->bm_h; y++) {
+		for (x = 0; x < mask_bmp->bm_w; x++) {
+			c = mask_bmp->bm_data[mask_bmp->bm_rowsize*y+x];
+			if (c == TRANSPARENCY_COLOR) {				// don't look for transparancy color here.
+				count++;
+				if (x < *minx) *minx = x;
+				if (y < *miny) *miny = y;
+				if (x > *maxx) *maxx = x;
+				if (y > *maxy) *maxy = y;
+			}
+		}
+	}
+	Assert (count);
+}
+#else
+#endif
 

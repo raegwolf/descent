@@ -294,9 +294,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  * 
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: render.c 2.5 1995/12/19 15:31:36 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: render.c 2.5 1995/12/19 15:31:36 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdlib.h>
 #include <string.h>
@@ -334,6 +340,13 @@ static char rcsid[] = "$Id: render.c 2.5 1995/12/19 15:31:36 john Exp $";
 
 #ifdef EDITOR
 #include "editor\editor.h"
+#endif
+#if defined(MACOS)
+
+void render_mine(int start_seg_num,fix eye_offset);
+static inline int min(int a, int b) { return a < b ? a : b; }
+static inline int max(int a, int b) { return a > b ? a : b; }
+#else
 #endif
 
 //used for checking if points have been rotated
@@ -396,6 +409,40 @@ int found_seg,found_side,found_face,found_poly;
 #define _search_mode 0
 #endif
 
+#if defined(MACOS)
+#ifdef NDEBUG		//if no debug code, set these vars to constants
+
+#define Outline_mode 0
+#define Show_only_curside 0
+
+#else
+
+int Outline_mode=0,Show_only_curside=0;
+
+int toggle_outline_mode(void)
+{
+	return Outline_mode = !Outline_mode;
+}
+
+int toggle_show_only_curside(void)
+{
+	return Show_only_curside = !Show_only_curside;
+}
+
+void draw_outline(int nverts,g3s_point **pointlist)
+{
+	int i;
+
+	gr_setcolor(BM_XRGB(63,63,63));
+
+	for (i=0;i<nverts-1;i++)
+		g3_draw_line(pointlist[i],pointlist[i+1]);
+
+	g3_draw_line(pointlist[i],pointlist[0]);
+
+}
+#endif
+#else
 #ifdef NDEBUG		//if no debug code, set these vars to constants
 
 #define Outline_mode 0
@@ -427,6 +474,7 @@ draw_outline(int nverts,g3s_point **pointlist)
 	g3_draw_line(pointlist[i],pointlist[0]);
 
 }
+#endif
 #endif
 
 grs_canvas * reticle_canvas = NULL;
@@ -512,7 +560,11 @@ fix flash_scale;
 fix flash_rate = FLASH_CYCLE_RATE;
 
 //cycle the flashing light for when mine destroyed
+#if defined(MACOS)
+void flash_frame()
+#else
 flash_frame()
+#endif
 {
 	static fixang flash_ang=0;
 
@@ -806,7 +858,11 @@ render_object_search(object *obj)
 }
 #endif
 
+#if defined(MACOS)
+void do_render_object(int objnum)
+#else
 do_render_object(int objnum)
+#endif
 {
 	#ifdef EDITOR
 	int save_3d_outline;
@@ -969,7 +1025,11 @@ void render_segment(int segnum)
 
 	Assert(segnum!=-1 && segnum<=Highest_segment_index);
 
+#if defined(MACOS)
+	cc=rotate_list(8,seg->verts);
+#else
 	cc=rotate_list(8,&seg->verts);
+#endif
 
 	if (! cc.and) {		//all off screen?
 
@@ -1043,6 +1103,46 @@ void render_segment(int segnum)
 #define CROSS_WIDTH  i2f(8)
 #define CROSS_HEIGHT i2f(8)
 
+#if defined(MACOS)
+#ifndef NDEBUG
+
+//draw outline for curside
+void outline_seg_side(segment *seg,int _side,int edge,int vert)
+{
+	g3s_codes cc;
+
+	cc=rotate_list(8,seg->verts);
+
+	if (! cc.and) {		//all off screen?
+		//side *s;
+		g3s_point *pnt;
+
+		//s=&seg->sides[_side];
+
+		//render curedge of curside of curseg in green
+
+		gr_setcolor(BM_XRGB(0,63,0));
+		g3_draw_line(&Segment_points[seg->verts[Side_to_verts[_side][edge]]],&Segment_points[seg->verts[Side_to_verts[_side][(edge+1)%4]]]);
+
+		//draw a little cross at the current vert
+
+		pnt = &Segment_points[seg->verts[Side_to_verts[_side][vert]]];
+
+		g3_project_point(pnt);		//make sure projected
+
+//		gr_setcolor(BM_XRGB(0,0,63));
+//		gr_line(pnt->p3_sx-CROSS_WIDTH,pnt->p3_sy,pnt->p3_sx+CROSS_WIDTH,pnt->p3_sy);
+//		gr_line(pnt->p3_sx,pnt->p3_sy-CROSS_HEIGHT,pnt->p3_sx,pnt->p3_sy+CROSS_HEIGHT);
+
+		gr_line(pnt->p3_sx-CROSS_WIDTH,pnt->p3_sy,pnt->p3_sx,pnt->p3_sy-CROSS_HEIGHT);
+		gr_line(pnt->p3_sx,pnt->p3_sy-CROSS_HEIGHT,pnt->p3_sx+CROSS_WIDTH,pnt->p3_sy);
+		gr_line(pnt->p3_sx+CROSS_WIDTH,pnt->p3_sy,pnt->p3_sx,pnt->p3_sy+CROSS_HEIGHT);
+		gr_line(pnt->p3_sx,pnt->p3_sy+CROSS_HEIGHT,pnt->p3_sx-CROSS_WIDTH,pnt->p3_sy);
+	}
+}
+
+#endif
+#else
 #ifndef NDEBUG
 
 //draw outline for curside
@@ -1080,6 +1180,7 @@ outline_seg_side(segment *seg,int _side,int edge,int vert)
 	}
 }
 
+#endif
 #endif
 
 #if 0		//this stuff could probably just be deleted
@@ -1124,6 +1225,32 @@ ubyte code_window_point(fix x,fix y,window *w)
 	return code;
 }
 
+#if defined(MACOS)
+#ifndef NDEBUG
+void draw_window_box(int color,short left,short top,short right,short bot)
+{
+	short l,t,r,b;
+
+	gr_setcolor(color);
+
+	l=left; t=top; r=right; b=bot;
+
+	if ( r<0 || b<0 || l>=grd_curcanv->cv_bitmap.bm_w || (t>=grd_curcanv->cv_bitmap.bm_h && b>=grd_curcanv->cv_bitmap.bm_h))
+		return;
+
+	if (l<0) l=0;
+	if (t<0) t=0;
+	if (r>=grd_curcanv->cv_bitmap.bm_w) r=grd_curcanv->cv_bitmap.bm_w-1;
+	if (b>=grd_curcanv->cv_bitmap.bm_h) b=grd_curcanv->cv_bitmap.bm_h-1;
+
+	gr_line(i2f(l),i2f(t),i2f(r),i2f(t));
+	gr_line(i2f(r),i2f(t),i2f(r),i2f(b));
+	gr_line(i2f(r),i2f(b),i2f(l),i2f(b));
+	gr_line(i2f(l),i2f(b),i2f(l),i2f(t));
+
+}
+#endif
+#else
 #ifndef NDEBUG
 draw_window_box(int color,short left,short top,short right,short bot)
 {
@@ -1147,6 +1274,7 @@ draw_window_box(int color,short left,short top,short right,short bot)
 	gr_line(i2f(l),i2f(b),i2f(l),i2f(t));
 
 }
+#endif
 #endif
 
 int matt_find_connect_side(int seg0,int seg1);
@@ -1179,7 +1307,11 @@ int Window_clip_left,Window_clip_top,Window_clip_right,Window_clip_bot;
 
 //Given two sides of segment, tell the two verts which form the 
 //edge between them
+#if defined(MACOS)
+int Two_sides_to_edge[6][6][2] = {
+#else
 Two_sides_to_edge[6][6][2] = {
+#endif
 	{ {-1,-1}, {3,7}, {-1,-1}, {2,6}, {6,7}, {2,3} },
 	{ {3,7}, {-1,-1}, {0,4}, {-1,-1}, {4,7}, {0,3} },
 	{ {-1,-1}, {0,4}, {-1,-1}, {1,5}, {4,5}, {0,1} },
@@ -1189,7 +1321,11 @@ Two_sides_to_edge[6][6][2] = {
 };
 
 //given an edge specified by two verts, give the two sides on that edge
+#if defined(MACOS)
+int Edge_to_sides[8][8][2] = {
+#else
 Edge_to_sides[8][8][2] = {
+#endif
 	{ {-1,-1}, {2,5}, {-1,-1}, {1,5}, {1,2}, {-1,-1}, {-1,-1}, {-1,-1} },
 	{ {2,5}, {-1,-1}, {3,5}, {-1,-1}, {-1,-1}, {2,3}, {-1,-1}, {-1,-1} },
 	{ {-1,-1}, {3,5}, {-1,-1}, {0,5}, {-1,-1}, {-1,-1}, {0,3}, {-1,-1} },
@@ -1220,7 +1356,11 @@ Edge_to_sides[8][8][2] = {
 
 
 //given an edge, tell what side is on that edge
+#if defined(MACOS)
+int find_seg_side(segment *seg,short *verts,int notside)
+#else
 find_seg_side(segment *seg,short *verts,int notside)
+#endif
 {
 	int i;
 	int vv0=-1,vv1=-1;
@@ -1273,7 +1413,11 @@ find_seg_side(segment *seg,short *verts,int notside)
 
 //find the two segments that join a given seg though two sides, and
 //the sides of those segments the abut. 
+#if defined(MACOS)
+int find_joining_side_norms(vms_vector *norm0_0,vms_vector *norm0_1,vms_vector *norm1_0,vms_vector *norm1_1,vms_vector **pnt0,vms_vector **pnt1,segment *seg,int s0,int s1)
+#else
 find_joining_side_norms(vms_vector *norm0_0,vms_vector *norm0_1,vms_vector *norm1_0,vms_vector *norm1_1,vms_vector **pnt0,vms_vector **pnt1,segment *seg,int s0,int s1)
+#endif
 {
 	segment *seg0,*seg1;
 	short edge_verts[2];
@@ -1354,12 +1498,19 @@ find_joining_side_norms(vms_vector *norm0_0,vms_vector *norm0_1,vms_vector *norm
 
 //see if the order matters for these two children.
 //returns 0 if order doesn't matter, 1 if c0 before c1, -1 if c1 before c0
+#if defined(MACOS)
+int compare_children(segment *seg,short c0,short c1)
+#else
 compare_children(segment *seg,short c0,short c1)
+#endif
 {
 	vms_vector norm0_0,norm0_1,*pnt0,temp;
 	vms_vector norm1_0,norm1_1,*pnt1;
 	fix d0_0,d0_1,d1_0,d1_1,d0,d1;
+#if defined(MACOS)
+#else
 int t;
+#endif
 
 	if (Side_opposite[c0] == c1) return 0;
 
@@ -1367,7 +1518,11 @@ int t;
 
 	//find normals of adjoining sides
 
+#if defined(MACOS)
+	find_joining_side_norms(&norm0_0,&norm0_1,&norm1_0,&norm1_1,&pnt0,&pnt1,seg,c0,c1);
+#else
 	t = find_joining_side_norms(&norm0_0,&norm0_1,&norm1_0,&norm1_1,&pnt0,&pnt1,seg,c0,c1);
+#endif
 
 //if (!t)
 // return 0;
@@ -1438,7 +1593,11 @@ int sort_seg_children(segment *seg,int n_children,short *child_list)
 	return count;
 }
 
+#if defined(MACOS)
+void add_obj_to_seglist(int objnum,int listnum)
+#else
 add_obj_to_seglist(int objnum,int listnum)
+#endif
 {
 	int i,checkn,marker;
 
@@ -1511,8 +1670,16 @@ sort_item sort_list[SORT_LIST_SIZE];
 int n_sort_items;
 
 //compare function for object sort. 
+#if defined(MACOS)
+int sort_func(const void *av, const void *bv)
+#else
 int sort_func(sort_item *a,sort_item *b)
+#endif
 {
+#if defined(MACOS)
+	const sort_item *a = av, *b = bv;
+#else
+#endif
 	fix delta_dist;
 	object *obj_a,*obj_b;
 
@@ -1540,7 +1707,11 @@ int sort_func(sort_item *a,sort_item *b)
 	return delta_dist;	//return distance
 }
 
+#if defined(MACOS)
+void build_object_lists(int n_segs)
+#else
 build_object_lists(int n_segs)
+#endif
 {
 	int nn;
 
@@ -1767,7 +1938,11 @@ int first_terminal_seg;
 
 //build a list of segments to be rendered
 //fills in Render_list & N_render_segs
+#if defined(MACOS)
+void build_segment_list(int start_seg_num)
+#else
 build_segment_list(int start_seg_num)
+#endif
 {
 	int	lcnt,scnt,ecnt;
 	int	l,c;
@@ -1847,7 +2022,11 @@ build_segment_list(int start_seg_num)
 						ubyte codes_and=0xff;
 						int i;
 
+#if defined(MACOS)
+						rotate_list(8,seg->verts);
+#else
 						rotate_list(8,&seg->verts);
+#endif
 						rotated=1;
 
 						for (i=0;i<4;i++)
@@ -1883,8 +2062,13 @@ build_segment_list(int start_seg_num)
 
 						if (rotated<2) {
 							if (!rotated)
+#if defined(MACOS)
+								rotate_list(8,seg->verts);
+							project_list(8,seg->verts);
+#else
 								rotate_list(8,&seg->verts);
 							project_list(8,&seg->verts);
+#endif
 							rotated=2;
 						}
 
@@ -2058,6 +2242,26 @@ void render_mine(int start_seg_num,fix eye_offset)
 	}
 	#endif
 
+#if defined(MACOS)
+	#ifndef NDEBUG
+	if (!(_search_mode || eye_offset>0)) {
+		int i;
+
+		for (i=0;i<N_render_segs;i++) {
+			int segnum;
+
+			segnum = Render_list[i];
+
+			if (segnum != -1) {
+				if (visited2[segnum])
+					Int3();		//get Matt
+				else
+					visited2[segnum] = 1;
+			}
+		}
+	}
+	#endif
+#else
 	#ifndef NDEBUG
 	if (!(_search_mode || eye_offset>0)) {
 		int i;
@@ -2075,6 +2279,7 @@ void render_mine(int start_seg_num,fix eye_offset)
 		}
 	}
 	#endif
+#endif
 
 //	if (!(_search_mode || eye_offset>0) && migrate_objects)
 	if (!(_search_mode))

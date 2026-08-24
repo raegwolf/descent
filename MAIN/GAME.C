@@ -282,9 +282,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  *
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: game.c 2.36 1996/01/05 16:52:05 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: game.c 2.36 1996/01/05 16:52:05 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdio.h>
 #include <malloc.h>
@@ -293,6 +299,10 @@ static char rcsid[] = "$Id: game.c 2.36 1996/01/05 16:52:05 john Exp $";
 #include <conio.h>
 #include <stdarg.h>
 #include <dos.h>
+#if defined(MACOS)
+#include "psrand.h"
+#else
+#endif
 
 #include "inferno.h"
 #include "game.h"
@@ -360,6 +370,15 @@ static char rcsid[] = "$Id: game.c 2.36 1996/01/05 16:52:05 john Exp $";
 #include "multibot.h"
 #include "ai.h"
 
+#if defined(MACOS)
+void GameLoop(int RenderFlag, int ReadControlsFlag );
+static inline int min(int a, int b) { return a < b ? a : b; }
+int create_special_path(void);
+void powerup_grab_cheat_all(void);
+
+
+#else
+#endif
 //#define TEST_TIMER	1		//if this is set, do checking on timer
 
 #define	SHOW_EXIT_PATH	1
@@ -377,6 +396,12 @@ static char rcsid[] = "$Id: game.c 2.36 1996/01/05 16:52:05 john Exp $";
 
 #ifdef EDITOR
 #include "editor\editor.h"
+#endif
+#if defined(MACOS)
+
+void fill_background(int x,int y,int w,int h,int dx,int dy);
+void game_init_render_sub_buffers( int x, int y, int w, int h );
+#else
 #endif
 
 //#define _MARK_ON 1
@@ -597,7 +622,11 @@ void reset_palette_add()
 }
 
 
+#if defined(MACOS)
+void game_show_warning(char *s)
+#else
 game_show_warning(char *s)
+#endif
 {
 
 	if (!((Game_mode & GM_MULTI) && (Function_mode == FMODE_GAME)))
@@ -769,9 +798,17 @@ void reset_cockpit()
 
 void HUD_clear_messages();
 
+#if defined(MACOS)
+void toggle_cockpit()
+#else
 toggle_cockpit()
+#endif
 {
+#if defined(MACOS)
+	int new_mode = Cockpit_mode;
+#else
 	int new_mode;
+#endif
 
 	switch (Cockpit_mode) {
 
@@ -805,7 +842,11 @@ toggle_cockpit()
 
 #define WINDOW_MIN_W		160
 
+#if defined(MACOS)
+void grow_window()
+#else
 grow_window()
+#endif
 {
 	if (Cockpit_mode == CM_FULL_COCKPIT) {
 		Game_window_h = max_window_h;
@@ -820,10 +861,20 @@ grow_window()
 		return;
 
 	if (Game_window_h >= max_window_h) {
+#if defined(MACOS)
+//#ifndef SHAREWARE
+#else
+#endif
 		Game_window_w = VR_render_width;
 		Game_window_h = VR_render_height;
 		select_cockpit(CM_FULL_SCREEN);
+#if defined(MACOS)
+//#endif		
+	} else
+	{
+#else
 	} else {
+#endif
 		int x,y;
 
 		Game_window_w += WINDOW_W_DELTA;
@@ -849,7 +900,11 @@ grow_window()
 
 grs_bitmap background_bitmap;
 
+#if defined(MACOS)
+void copy_background_rect(int left,int top,int right,int bot)
+#else
 copy_background_rect(int left,int top,int right,int bot)
+#endif
 {
 	grs_bitmap *bm = &background_bitmap;
 	int x,y;
@@ -893,7 +948,11 @@ copy_background_rect(int left,int top,int right,int bot)
 
 }
 
+#if defined(MACOS)
+void fill_background(int x,int y,int w,int h,int dx,int dy)
+#else
 fill_background(int x,int y,int w,int h,int dx,int dy)
+#endif
 {
 	gr_set_current_canvas(&VR_screen_pages[VR_current_page]);
 	copy_background_rect(x-dx,y-dy,x-1,y+h+dy-1);
@@ -902,7 +961,11 @@ fill_background(int x,int y,int w,int h,int dx,int dy)
 	copy_background_rect(x,y+h,x+w-1,y+h+dy-1);
 }
 
+#if defined(MACOS)
+void shrink_window()
+#else
 shrink_window()
+#endif
 {
 	if (Cockpit_mode == CM_FULL_COCKPIT) {
 		Game_window_h = max_window_h;
@@ -993,6 +1056,8 @@ void game_init_render_buffers(int screen_mode, int render_w, int render_h, int u
 
 void game_3dmax_off()
 {
+#if defined(MACOS)
+#if 0
 	union REGS regs;
 
 //	memset(&regs,0,sizeof(regs));
@@ -1012,10 +1077,34 @@ void game_3dmax_off()
 
 	mprintf(( 0, "3dmax off\n" ));
 	return;
+#endif
+#else
+	union REGS regs;
+
+//	memset(&regs,0,sizeof(regs));
+//	regs.w.ax = 0x4fd0;
+//	regs.w.bx =	0x3d08;		// I
+//	int386 (0x10, &regs, &regs);
+
+	memset(&regs,0,sizeof(regs));
+	regs.w.ax = 0x4fd0;
+	regs.w.bx =	0x3d00;		// Interlace off
+	int386 (0x10, &regs, &regs);
+
+	memset(&regs,0,sizeof(regs));
+	regs.w.ax = 0x4fd0;
+	regs.w.bx =	0x3d02;		// Glasses off
+	int386 (0x10, &regs, &regs);
+
+	mprintf(( 0, "3dmax off\n" ));
+	return;
+#endif
 }
 
 void game_3dmax_on()
 {
+#if defined(MACOS)
+#if 0
 	union REGS regs;
 
 //	memset(&regs,0,sizeof(regs));
@@ -1035,6 +1124,28 @@ void game_3dmax_on()
 
 	mprintf(( 0, "3dmax on\n" ));
 	return;
+#endif
+#else
+	union REGS regs;
+
+//	memset(&regs,0,sizeof(regs));
+//	regs.w.ax = 0x4fd0;
+// regs.w.bx =	0x3d09;		// Glasses on
+//	int386 (0x10, &regs, &regs);
+
+	memset(&regs,0,sizeof(regs));
+	regs.w.ax = 0x4fd0;
+   regs.w.bx =	0x3d01;		// Interlace on
+	int386 (0x10, &regs, &regs);
+
+	memset(&regs,0,sizeof(regs));
+	regs.w.ax = 0x4fd0;
+	regs.w.bx =	0x3d03;		// Glasses on
+	int386 (0x10, &regs, &regs);
+
+	mprintf(( 0, "3dmax on\n" ));
+	return;
+#endif
 }
 
 
@@ -1151,6 +1262,43 @@ int set_screen_mode(int sm)
 	return 1;
 }
 
+#if defined(MACOS)
+#ifndef RELEASE
+fix frame_time_list[8] = {0,0,0,0,0,0,0,0};
+fix frame_time_total=0;
+int frame_time_cntr=0;
+
+void ftoa(char *string, fix f)
+{
+	int decimal, fractional;
+	
+	decimal = f2i(f);
+	fractional = ((f & 0xffff)*100)/65536;
+	if (fractional < 0 )
+		fractional *= -1;
+	if (fractional > 99 ) fractional = 99;
+	sprintf( string, "%d.%02d", decimal, fractional );
+}
+
+void show_framerate()
+{
+	char temp[50];
+	fix rate;
+
+	frame_time_total += RealFrameTime - frame_time_list[frame_time_cntr];
+	frame_time_list[frame_time_cntr] = RealFrameTime;
+	frame_time_cntr = (frame_time_cntr+1)%8;
+
+	rate = fixdiv(f1_0*8,frame_time_total);
+
+	gr_set_curfont( GAME_FONT );	
+	gr_set_fontcolor(gr_getcolor(0,31,0),-1 );
+
+	ftoa( temp, rate );	// Convert fixed to string
+	gr_printf(grd_curcanv->cv_w-50,grd_curcanv->cv_h-20,"FPS: %s ", temp );
+}
+#endif
+#else
 #ifndef RELEASE
 fix frame_time_list[8] = {0,0,0,0,0,0,0,0};
 fix frame_time_total=0;
@@ -1186,8 +1334,13 @@ show_framerate()
 	gr_printf(grd_curcanv->cv_w-50,grd_curcanv->cv_h-20,"FPS: %s ", temp );
 }
 #endif
+#endif
 
+#if defined(MACOS)
+static int timer_paused=0;		
+#else
 static timer_paused=0;		
+#endif
 
 void stop_time()
 {
@@ -1349,6 +1502,50 @@ void move_player_2_segment(segment *seg,int side)
 
 fix Show_view_text_timer = -1;
 
+#if defined(MACOS)
+#ifndef NDEBUG
+
+void draw_window_label()
+{
+	if ( Show_view_text_timer > 0 )
+	{
+		char *viewer_name,*control_name;
+
+		Show_view_text_timer -= FrameTime;
+		gr_set_curfont( GAME_FONT );
+
+		switch( Viewer->type )
+		{
+			case OBJ_FIREBALL:	viewer_name = "Fireball"; break;
+			case OBJ_ROBOT:		viewer_name = "Robot"; break;
+			case OBJ_HOSTAGE:		viewer_name = "Hostage"; break;
+			case OBJ_PLAYER:		viewer_name = "Player"; break;
+			case OBJ_WEAPON:		viewer_name = "Weapon"; break;
+			case OBJ_CAMERA:		viewer_name = "Camera"; break;
+			case OBJ_POWERUP:		viewer_name = "Powerup"; break;
+			case OBJ_DEBRIS:		viewer_name = "Debris"; break;
+			case OBJ_CNTRLCEN:	viewer_name = "Control Center"; break;
+			default:					viewer_name = "Unknown"; break;
+		}
+
+		switch ( Viewer->control_type) {
+			case CT_NONE:			control_name = "Stopped"; break;
+			case CT_AI:				control_name = "AI"; break;
+			case CT_FLYING:		control_name = "Flying"; break;
+			case CT_SLEW:			control_name = "Slew"; break;
+			case CT_FLYTHROUGH:	control_name = "Flythrough"; break;
+			case CT_MORPH:			control_name = "Morphing"; break;
+			default:					control_name = "Unknown"; break;
+		}
+
+		gr_set_fontcolor( gr_getcolor(31, 0, 0), -1 );
+		gr_printf( 0x8000, 45, "%s View - %s",viewer_name,control_name );
+
+	}
+}
+
+#endif
+#else
 #ifndef NDEBUG
 
 draw_window_label()
@@ -1391,6 +1588,7 @@ draw_window_label()
 }
 #endif
 
+#endif
 
 void render_countdown_gauge()
 {
@@ -1501,10 +1699,18 @@ void game_draw_hud_stuff()
 			if (Newdemo_vcr_state != ND_STATE_PRINTSCREEN) {
 			  	sprintf(message, "%s (%d%%%% %s)", TXT_DEMO_PLAYBACK, newdemo_get_percent_done(), TXT_DONE);
 			} else {
+#if defined(MACOS)
+				strcpy (message, "");
+#else
 				sprintf (message, "");
+#endif
 			}
 		} else 
+#if defined(MACOS)
+			sprintf (message, "%s", TXT_DEMO_RECORDING);
+#else
 			sprintf (message, TXT_DEMO_RECORDING);
+#endif
 
 		gr_set_curfont( GAME_FONT );    //GAME_FONT );
 		gr_set_fontcolor(gr_getcolor(27,0,0), -1 );
@@ -1527,7 +1733,11 @@ void game_draw_hud_stuff()
 
 		gr_set_curfont( GAME_FONT );
 		gr_set_fontcolor( gr_getcolor(0, 31, 0), -1 );
+#if defined(MACOS)
+		if (Cruise_speed > 0) {
+#else
 		if (Cruise_speed > 0)
+#endif
 			if (Cockpit_mode==CM_FULL_SCREEN) {
 				if (Game_mode & GM_MULTI)
 					y -= 64;
@@ -1544,6 +1754,10 @@ void game_draw_hud_stuff()
 			}
 
 			gr_printf( x, y, "%s %2d%%", TXT_CRUISE, f2i(Cruise_speed) );
+#if defined(MACOS)
+		}
+#else
+#endif
 
 	}
 
@@ -1577,8 +1791,14 @@ extern int gr_wait_for_retrace;
 extern int gr_bitblt_double;
 
 //render a frame for the game in stereo
+#if defined(MACOS)
+void game_render_frame_stereo_vfx()
+#else
 game_render_frame_stereo_vfx()
+#endif
 {
+#if defined(MACOS)
+#if 0
 	int dw,dh,sw,sh;
 	fix save_aspect;
 	grs_canvas RenderCanvas[2];
@@ -1641,13 +1861,87 @@ game_render_frame_stereo_vfx()
 		vfx_set_page(VR_current_page);		// 0 or 1
 
 	grd_curscreen->sc_aspect = save_aspect; //restore aspect
+#endif
+#else
+	int dw,dh,sw,sh;
+	fix save_aspect;
+	grs_canvas RenderCanvas[2];
+
+	save_aspect = grd_curscreen->sc_aspect;
+
+	sw = dw = VR_render_buffer[0].cv_bitmap.bm_w;
+	sh = dh = VR_render_buffer[0].cv_bitmap.bm_h;
+
+	if (VR_low_res & 1)	{
+		sh /= 2;				
+		grd_curscreen->sc_aspect *= 2;  //Muck with aspect ratio	                        
+	}
+	if (VR_low_res & 2)	{
+		sw /= 2;				
+		grd_curscreen->sc_aspect /= 2;  //Muck with aspect ratio	                        
+	}
+
+	gr_init_sub_canvas( &RenderCanvas[0], &VR_render_buffer[0], 0, 0, sw, sh );
+	gr_init_sub_canvas( &RenderCanvas[1], &VR_render_buffer[1], 0, 0, sw, sh );
+
+	// Draw the left eye's view
+	if (VR_switch_eyes)	
+		gr_set_current_canvas(&RenderCanvas[1]);
+	else
+		gr_set_current_canvas(&RenderCanvas[0]);
+	render_frame(-VR_eye_width);		// Left eye
+	if ( VR_show_hud )
+		game_draw_hud_stuff();
+
+	// Draw the right eye's view
+	if (VR_switch_eyes)	
+		gr_set_current_canvas(&RenderCanvas[0]);
+	else
+		gr_set_current_canvas(&RenderCanvas[1]);
+	render_frame(VR_eye_width);		// Right eye
+
+	// Copy left eye, then right eye
+	VR_current_page = !VR_current_page;
+	gr_bitblt_dest_step_shift = 1;		// Skip every other scanline.
+
+	if ( VR_low_res & 2 )		// Horizontal stretch
+		gr_bitblt_double = 1;
+
+	if ( VR_low_res & 1 )	{
+		gr_bitblt_dest_step_shift = 2;			// Vertical stretch
+		gr_bm_ubitblt( dw, sh, 0, VR_current_page, 0, 0, &RenderCanvas[0].cv_bitmap, &VR_screen_pages[0].cv_bitmap);
+		gr_bm_ubitblt( dw, sh, 0, VR_current_page+2, 0, 0, &RenderCanvas[0].cv_bitmap, &VR_screen_pages[0].cv_bitmap);
+		gr_bm_ubitblt( dw, sh, dw, VR_current_page, 0, 0, &RenderCanvas[1].cv_bitmap, &VR_screen_pages[0].cv_bitmap);
+		gr_bm_ubitblt( dw, sh, dw, VR_current_page+2, 0, 0, &RenderCanvas[1].cv_bitmap, &VR_screen_pages[0].cv_bitmap);
+	} else {
+		gr_bm_ubitblt( dw, sh, 0, VR_current_page, 0, 0, &RenderCanvas[0].cv_bitmap, &VR_screen_pages[0].cv_bitmap);
+		gr_bm_ubitblt( dw, sh, dw, VR_current_page, 0, 0, &RenderCanvas[1].cv_bitmap, &VR_screen_pages[0].cv_bitmap);
+	}
+
+	gr_bitblt_double = 0;
+	gr_bitblt_dest_step_shift = 0;
+
+	if ( Game_vfx_flag )
+		vfx_set_page(VR_current_page);		// 0 or 1
+
+	grd_curscreen->sc_aspect = save_aspect; //restore aspect
+#endif
 }
 
 
+#if defined(MACOS)
+#else
 
+#endif
 //render a frame for the game in stereo
+#if defined(MACOS)
+void game_render_frame_stereo_interlaced()
+#else
 game_render_frame_stereo_interlaced()
+#endif
 {
+#if defined(MACOS)
+#if 0
 	int dw,dh,sw,sh;
 	fix save_aspect;
 	grs_canvas RenderCanvas[2];
@@ -1848,6 +2142,209 @@ game_render_frame_stereo_interlaced()
 		gr_wait_for_retrace = 1;
 	}
 	grd_curscreen->sc_aspect=save_aspect;
+#endif
+#else
+	int dw,dh,sw,sh;
+	fix save_aspect;
+	grs_canvas RenderCanvas[2];
+
+	save_aspect = grd_curscreen->sc_aspect;
+	grd_curscreen->sc_aspect *= 2;	//Muck with aspect ratio
+
+	sw = dw = VR_render_buffer[0].cv_bitmap.bm_w;
+	sh = dh = VR_render_buffer[0].cv_bitmap.bm_h;
+
+	if (VR_low_res & 1)	{
+		sh /= 2;				
+		grd_curscreen->sc_aspect *= 2;  //Muck with aspect ratio	                        
+	}
+	if (VR_low_res & 2)	{
+		sw /= 2;				
+		grd_curscreen->sc_aspect /= 2;  //Muck with aspect ratio	                        
+	}
+
+	gr_init_sub_canvas( &RenderCanvas[0], &VR_render_buffer[0], 0, 0, sw, sh );
+	gr_init_sub_canvas( &RenderCanvas[1], &VR_render_buffer[1], 0, 0, sw, sh );
+
+	// Draw the left eye's view
+	if (VR_switch_eyes)	
+		gr_set_current_canvas(&RenderCanvas[1]);
+	else
+		gr_set_current_canvas(&RenderCanvas[0]);
+
+	if (Rear_view)
+		render_frame(VR_eye_width);	// switch eye positions for rear view
+	else
+		render_frame(-VR_eye_width);		// Left eye
+
+	if (VR_eye_offset > 0 ) {
+		gr_setcolor( gr_getcolor(0,0,0) );
+		gr_rect( grd_curcanv->cv_bitmap.bm_w-labs(VR_eye_offset)*2, 0, 
+               grd_curcanv->cv_bitmap.bm_w-1, grd_curcanv->cv_bitmap.bm_h );
+	} else if (VR_eye_offset < 0 ) {
+		gr_setcolor( gr_getcolor(0,0,0) );
+		gr_rect( 0, 0, labs(VR_eye_offset)*2-1, grd_curcanv->cv_bitmap.bm_h );
+	}
+
+	if ( VR_show_hud )	{
+		grs_canvas tmp;
+		if (VR_eye_offset < 0 ) {
+			gr_init_sub_canvas( &tmp, grd_curcanv, labs(VR_eye_offset*2), 0, grd_curcanv->cv_bitmap.bm_w-(labs(VR_eye_offset)*2), grd_curcanv->cv_bitmap.bm_h );
+		} else {
+			gr_init_sub_canvas( &tmp, grd_curcanv, 0, 0, grd_curcanv->cv_bitmap.bm_w-(labs(VR_eye_offset)*2), grd_curcanv->cv_bitmap.bm_h );
+		}
+		gr_set_current_canvas( &tmp );
+		game_draw_hud_stuff();
+	}
+
+
+	// Draw the right eye's view
+	if (VR_switch_eyes)	
+		gr_set_current_canvas(&RenderCanvas[0]);
+	else
+		gr_set_current_canvas(&RenderCanvas[1]);
+
+	if (Rear_view)
+		render_frame(-VR_eye_width);	// switch eye positions for rear view
+	else
+		render_frame(VR_eye_width);		// Right eye
+
+	if (VR_eye_offset>0) {
+		gr_setcolor( gr_getcolor(0,0,0) );
+		gr_rect( 0, 0, labs(VR_eye_offset)*2-1, grd_curcanv->cv_bitmap.bm_h );
+	} else if ( VR_eye_offset < 0 )	{
+		gr_setcolor( gr_getcolor(0,0,0) );
+		gr_rect( grd_curcanv->cv_bitmap.bm_w-labs(VR_eye_offset)*2, 0, 
+               grd_curcanv->cv_bitmap.bm_w-1, grd_curcanv->cv_bitmap.bm_h );
+	}
+
+	if ( VR_show_hud )	{
+		grs_canvas tmp;
+		if (VR_eye_offset > 0 ) {
+			gr_init_sub_canvas( &tmp, grd_curcanv, labs(VR_eye_offset*2), 0, grd_curcanv->cv_bitmap.bm_w-(labs(VR_eye_offset)*2), grd_curcanv->cv_bitmap.bm_h );
+		} else {
+			gr_init_sub_canvas( &tmp, grd_curcanv, 0, 0, grd_curcanv->cv_bitmap.bm_w-(labs(VR_eye_offset)*2), grd_curcanv->cv_bitmap.bm_h );
+		}
+		gr_set_current_canvas( &tmp );
+		game_draw_hud_stuff();
+	}
+
+
+	// Draws white and black registration encoding lines
+	// and Accounts for pixel-shift adjustment in upcoming bitblts
+	if (Game_simuleyes_flag)	{
+		int width, height, quarter, nibble;
+		void *pixptr, *drawptr;
+
+		width = RenderCanvas[0].cv_bitmap.bm_w;
+		height = RenderCanvas[0].cv_bitmap.bm_h;
+		pixptr = RenderCanvas[0].cv_bitmap.bm_data;
+		quarter = width / 4;
+		nibble = labs(VR_eye_offset); // pixel-shift amount
+
+		// black out left-hand side of left page
+
+		// draw registration code for left eye
+		drawptr = (void*)((int)pixptr + width*(height-1) - VR_eye_offset);
+		memset(drawptr, svr_white, quarter);
+		drawptr = (void*)((int)drawptr + quarter);
+		if (VR_eye_offset < 0) // stay within buffer limit
+			memset(drawptr, svr_black, 3*quarter - nibble);
+		else
+			memset(drawptr, svr_black, 3*quarter);
+
+		// black out right-hand side of right page
+		pixptr = RenderCanvas[1].cv_bitmap.bm_data;
+
+
+		// draw registration code for right eye
+		drawptr = (void*)((int)pixptr + width*(height-1) + VR_eye_offset);
+		memset(drawptr, svr_white, 3*quarter);
+		drawptr = (void*)((int)drawptr + 3*quarter);
+		if (VR_eye_offset > 0) // stay within buffer limit
+			memset(drawptr, svr_black, quarter - nibble);
+		else
+			memset(drawptr, svr_black, quarter);
+   }
+
+		// Copy left eye, then right eye
+	if (  VR_use_paging   )
+		VR_current_page = !VR_current_page;
+	else 
+		VR_current_page = 0;
+	gr_set_current_canvas( &VR_screen_pages[VR_current_page] );
+
+	if ( VR_eye_offset_changed > 0 )	{
+		VR_eye_offset_changed--;
+		gr_clear_canvas(0);
+	}
+
+	if ( VR_low_res & 2 )		// Horizontal stretch
+		gr_bitblt_double = 1;
+
+	// Copy left eye, then right eye
+	if ( VR_low_res & 1 )	{
+		gr_bitblt_dest_step_shift = 2;	// Skip every 4 scanlines.
+		if ( VR_eye_offset > 0 )	{
+			int xoff = labs(VR_eye_offset);
+			gr_bm_ubitblt( dw-xoff, dh/2, xoff, 0, 0, 0, &RenderCanvas[0].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+			gr_bm_ubitblt( dw-xoff, dh/2, 0, 1, xoff, 0, &RenderCanvas[1].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+			gr_bm_ubitblt( dw-xoff, dh/2, xoff, 2, 0, 0, &RenderCanvas[0].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+			gr_bm_ubitblt( dw-xoff, dh/2, 0, 3, xoff, 0, &RenderCanvas[1].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+		} else if ( VR_eye_offset < 0 )	{
+			int xoff = labs(VR_eye_offset);
+			gr_bm_ubitblt( dw-xoff, dh/2, 0, 0, xoff, 0, &RenderCanvas[0].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+			gr_bm_ubitblt( dw-xoff, dh/2, xoff, 1, 0, 0, &RenderCanvas[1].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+			gr_bm_ubitblt( dw-xoff, dh/2, 0, 2, xoff, 0, &RenderCanvas[0].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+			gr_bm_ubitblt( dw-xoff, dh/2, xoff, 3, 0, 0, &RenderCanvas[1].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+		} else {
+			gr_bm_ubitblt( dw, dh/2, 0, 0, 0, 0, &RenderCanvas[0].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+			gr_bm_ubitblt( dw, dh/2, 0, 1, 0, 0, &RenderCanvas[1].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+			gr_bm_ubitblt( dw, dh/2, 0, 2, 0, 0, &RenderCanvas[0].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+			gr_bm_ubitblt( dw, dh/2, 0, 3, 0, 0, &RenderCanvas[1].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+		}
+	} else {
+		gr_bitblt_dest_step_shift = 1;		// Skip every other scanline.
+		if ( VR_eye_offset > 0 )	{
+			int xoff = labs(VR_eye_offset);
+			gr_bm_ubitblt( dw-xoff, dh, xoff, 0, 0, 0, &RenderCanvas[0].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+			gr_bm_ubitblt( dw-xoff, dh, 0, 1, xoff, 0, &RenderCanvas[1].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+		} else if ( VR_eye_offset < 0 )	{
+			int xoff = labs(VR_eye_offset);
+			gr_bm_ubitblt( dw-xoff, dh, 0, 0, xoff, 0, &RenderCanvas[0].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+			gr_bm_ubitblt( dw-xoff, dh, xoff, 1, 0, 0, &RenderCanvas[1].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+		} else {
+			gr_bm_ubitblt( dw, dh, 0, 0, 0, 0, &RenderCanvas[0].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+			gr_bm_ubitblt( dw, dh, 0, 1, 0, 0, &RenderCanvas[1].cv_bitmap, &VR_screen_pages[VR_current_page].cv_bitmap);
+		}
+	}
+
+	gr_bitblt_double = 0;
+	gr_bitblt_dest_step_shift = 0;
+
+	if (  VR_use_paging  )	{
+		gr_wait_for_retrace = 0;
+
+		if ( (VR_screen_pages[VR_current_page].cv_bitmap.bm_type == BM_MODEX) && (Game_3dmax_flag==3) )	{
+			int old_x, old_y, new_x;
+			old_x = VR_screen_pages[VR_current_page].cv_bitmap.bm_x;
+			old_y = VR_screen_pages[VR_current_page].cv_bitmap.bm_y;
+			new_x = old_y*VR_screen_pages[VR_current_page].cv_bitmap.bm_rowsize;
+			new_x += old_x/4;
+			VR_screen_pages[VR_current_page].cv_bitmap.bm_x = new_x;
+			VR_screen_pages[VR_current_page].cv_bitmap.bm_y = 0;
+			VR_screen_pages[VR_current_page].cv_bitmap.bm_type = BM_SVGA;
+			gr_show_canvas( &VR_screen_pages[VR_current_page] );
+			VR_screen_pages[VR_current_page].cv_bitmap.bm_type = BM_MODEX;
+			VR_screen_pages[VR_current_page].cv_bitmap.bm_x = old_x;
+			VR_screen_pages[VR_current_page].cv_bitmap.bm_y = old_y;
+		} else {
+			gr_show_canvas( &VR_screen_pages[VR_current_page] );
+		}
+		gr_wait_for_retrace = 1;
+	}
+	grd_curscreen->sc_aspect=save_aspect;
+#endif
 }
 
 
@@ -1941,10 +2438,18 @@ void save_screen_shot(int automap_flag)
 	char message[100];
 	grs_canvas *screen_canv=&grd_curscreen->sc_canvas;
 	grs_font *save_font;
+#if defined(MACOS)
+	static int savenum=0;
+#else
 	static savenum=0;
+#endif
 	grs_canvas *temp_canv,*save_canv;
 	char savename[13];
+#if defined(MACOS)
+	//ubyte pal[768];
+#else
 	ubyte pal[768];
+#endif
 	int w,h,aw,x,y;
 
 	// Can't do screen shots in VR modes.
@@ -1980,8 +2485,14 @@ void save_screen_shot(int automap_flag)
 	}
 	t1 = timer_get_fixed_seconds() + F1_0;
 
+#if defined(MACOS)
+	//gr_palette_read(pal);		//get actual palette from the hardware
+	extern ubyte gr_visible_pal[768];
+	pcx_write_bitmap(savename,&temp_canv->cv_bitmap,gr_visible_pal);
+#else
 	gr_palette_read(pal);		//get actual palette from the hardware
 	pcx_write_bitmap(savename,&temp_canv->cv_bitmap,pal);
+#endif
 
 	while ( timer_get_fixed_seconds() < t1 );		// Wait so that messag stays up at least 1 second.
 
@@ -1998,7 +2509,11 @@ void save_screen_shot(int automap_flag)
 }
 
 //initialize flying
+#if defined(MACOS)
+void fly_init(object *obj)
+#else
 fly_init(object *obj)
+#endif
 {
 	obj->control_type = CT_FLYING;
 	obj->movement_type = MT_PHYSICS;
@@ -2017,21 +2532,33 @@ int sound_nums[] = {10,11,20,21,30,31,32,33,40,41,50,51,60,61,62,70,80,81,82,83,
 
 int test_sound_num=0;
 
+#if defined(MACOS)
+void play_test_sound()
+#else
 play_test_sound()
+#endif
 {
 
 	digi_play_sample(sound_nums[test_sound_num], F1_0);
 }
 
 //	------------------------------------------------------------------------------------
+#if defined(MACOS)
+void advance_sound()
+#else
 advance_sound()
+#endif
 {
 	if (++test_sound_num == N_TEST_SOUNDS)
 		test_sound_num=0;
 
 }
 
+#if defined(MACOS)
+void test_anim_states();
+#else
 test_anim_states();
+#endif
 
 #include "fvi.h"
 
@@ -2161,7 +2688,11 @@ void diminish_palette_towards_normal(void)
 	//	Diminish at DIMINISH_RATE units/second.
 	//	For frame rates > DIMINISH_RATE Hz, use randomness to achieve this.
 	if (FrameTime < F1_0/DIMINISH_RATE) {
+#if defined(MACOS)
+		if (psrand() < FrameTime*DIMINISH_RATE/2)	//	Note: psrand() is in 0..32767, and 8 Hz means decrement every frame
+#else
 		if (rand() < FrameTime*DIMINISH_RATE/2)	//	Note: rand() is in 0..32767, and 8 Hz means decrement every frame
+#endif
 			dec_amount = 1;
 	} else {
 		dec_amount = f2i(FrameTime*DIMINISH_RATE);		// one second = DIMINISH_RATE counts
@@ -2185,6 +2716,8 @@ void diminish_palette_towards_normal(void)
 
 	//mprintf(0, "%2i %2i %2i\n", PaletteRedAdd, PaletteGreenAdd, PaletteBlueAdd);
 
+#if defined(MACOS)
+	#if 0
 	// need to reset black and white palette colors for SVR registration
 	if (Game_simuleyes_flag)  {
 		// make black be black		
@@ -2200,6 +2733,24 @@ void diminish_palette_towards_normal(void)
 		outp( 0x3c9, 63 );
 		outp( 0x3c9, 63 );
 	}
+	#endif
+#else
+	// need to reset black and white palette colors for SVR registration
+	if (Game_simuleyes_flag)  {
+		// make black be black		
+		outp( 0x3c6, 0xff );
+		outp( 0x3c8, svr_black );
+		outp( 0x3c9, 0 );
+		outp( 0x3c9, 0 );
+		outp( 0x3c9, 0 );
+		// make white be white
+		outp( 0x3c6, 0xff );
+		outp( 0x3c8, svr_white );
+		outp( 0x3c9, 63 );
+		outp( 0x3c9, 63 );
+		outp( 0x3c9, 63 );
+	}
+#endif
 }
 
 int	Redsave, Bluesave, Greensave;
@@ -2217,6 +2768,55 @@ void palette_restore(void)
 
 extern void dead_player_frame(void);
 
+#if defined(MACOS)
+#ifndef RELEASE
+void do_cheat_menu()
+{
+	int mmn;
+	newmenu_item mm[16];
+	char score_text[21];
+
+	sprintf( score_text, "%d", Players[Player_num].score );
+
+	mm[0].type=NM_TYPE_CHECK; mm[0].value=Players[Player_num].flags & PLAYER_FLAGS_INVULNERABLE; mm[0].text="Invulnerability";
+	mm[1].type=NM_TYPE_CHECK; mm[1].value=Players[Player_num].flags & PLAYER_FLAGS_IMMATERIAL; mm[1].text="Immaterial";
+	mm[2].type=NM_TYPE_CHECK; mm[2].value=0; mm[2].text="All keys";
+	mm[3].type=NM_TYPE_NUMBER; mm[3].value=f2i(Players[Player_num].energy); mm[3].text="% Energy"; mm[3].min_value=0; mm[3].max_value=200;
+	mm[4].type=NM_TYPE_NUMBER; mm[4].value=f2i(Players[Player_num].shields); mm[4].text="% Shields"; mm[4].min_value=0; mm[4].max_value=200;
+	mm[5].type=NM_TYPE_TEXT; mm[5].text = "Score:";
+	mm[6].type=NM_TYPE_INPUT; mm[6].text_len = 10; mm[6].text = score_text;
+	mm[7].type=NM_TYPE_RADIO; mm[7].value=(Players[Player_num].laser_level==0); mm[7].group=0; mm[7].text="Laser level 1";
+	mm[8].type=NM_TYPE_RADIO; mm[8].value=(Players[Player_num].laser_level==1); mm[8].group=0; mm[8].text="Laser level 2";
+	mm[9].type=NM_TYPE_RADIO; mm[9].value=(Players[Player_num].laser_level==2); mm[9].group=0; mm[9].text="Laser level 3";
+	mm[10].type=NM_TYPE_RADIO; mm[10].value=(Players[Player_num].laser_level==3); mm[10].group=0; mm[10].text="Laser level 4";
+	mm[11].type=NM_TYPE_NUMBER; mm[11].value=Players[Player_num].secondary_ammo[CONCUSSION_INDEX]; mm[11].text="Missiles"; mm[11].min_value=0; mm[11].max_value=200;
+
+	mmn = newmenu_do("Wimp Menu",NULL,12, mm, NULL );
+
+	if (mmn > -1 )	{
+		if ( mm[0].value )  {
+			Players[Player_num].flags |= PLAYER_FLAGS_INVULNERABLE;
+			Players[Player_num].invulnerable_time = GameTime+i2f(1000);
+		} else
+			Players[Player_num].flags &= ~PLAYER_FLAGS_INVULNERABLE;
+		if ( mm[1].value ) 
+			Players[Player_num].flags |= PLAYER_FLAGS_IMMATERIAL;
+		else
+			Players[Player_num].flags &= ~PLAYER_FLAGS_IMMATERIAL;
+		if (mm[2].value) Players[Player_num].flags |= PLAYER_FLAGS_BLUE_KEY | PLAYER_FLAGS_RED_KEY | PLAYER_FLAGS_GOLD_KEY;
+		Players[Player_num].energy=i2f(mm[3].value);
+		Players[Player_num].shields=i2f(mm[4].value);
+		Players[Player_num].score = atoi(mm[6].text);
+		if (mm[7].value) Players[Player_num].laser_level=0;
+		if (mm[8].value) Players[Player_num].laser_level=1;
+		if (mm[9].value) Players[Player_num].laser_level=2;
+		if (mm[10].value) Players[Player_num].laser_level=3;
+		Players[Player_num].secondary_ammo[CONCUSSION_INDEX] = mm[11].value;
+		init_gauges();
+	}
+}
+#endif
+#else
 #ifndef RELEASE
 do_cheat_menu()
 {
@@ -2263,6 +2863,7 @@ do_cheat_menu()
 		init_gauges();
 	}
 }
+#endif
 #endif
 
 //	--------------------------------------------------------------------------------------------------
@@ -2315,7 +2916,11 @@ typedef struct bkg {
 bkg bg = {0,0,0,0,NULL};
 
 //show a message in a nice little box
+#if defined(MACOS)
+void show_boxed_message(char *msg)
+#else
 show_boxed_message(char *msg)
+#endif
 {	
 	int w,h,aw;
 	int x,y;
@@ -2346,7 +2951,11 @@ show_boxed_message(char *msg)
 
 }
 
+#if defined(MACOS)
+void clear_boxed_message()
+#else
 clear_boxed_message()
+#endif
 {
 
 	if (bg.bmp) {
@@ -2390,7 +2999,11 @@ int do_game_pause(int allow_menu)
 
 	while (paused) {
 
+#if defined(MACOS)
+		key = key_inkey();
+#else
 		key = key_getch();
+#endif
 
 		switch (key) {
 			case 0:
@@ -2424,6 +3037,10 @@ int do_game_pause(int allow_menu)
 
 		}
 
+#if defined(MACOS)
+		gr_sync_display();
+#else
+#endif
 	}
 
 	game_flush_inputs();
@@ -2506,7 +3123,11 @@ void arcade_frame_info()
 extern void temp_reset_stuff_on_level();
 
 //deal with rear view - switch it on, or off, or whatever
+#if defined(MACOS)
+void check_rear_view()
+#else
 check_rear_view()
+#endif
 {
 
 	#define LEAVE_TIME 0x4000		//how long until we decide key is down	(Used to be 0x4000)
@@ -2735,12 +3356,21 @@ void game()
 
 	game_flush_inputs();
 
+#if defined(MACOS)
+	//if ( setjmp(LeaveGame)==0 )	{
+#else
 	if ( setjmp(LeaveGame)==0 )	{
+#endif
 
 		if (VR_screen_mode != SCREEN_MENU)
 			vr_reset_display();
 
+#if defined(MACOS)
+		LeaveGameFlag = 0;
+		while (!LeaveGameFlag) {
+#else
 		while (1) {
+#endif
 			// GAME LOOP!
 			Automap_flag = 0;
 			Config_menu_flag = 0;
@@ -2748,6 +3378,12 @@ void game()
 			Assert( ConsoleObject == &Objects[Players[Player_num].objnum] );
 
 			GameLoop( 1, 1 );		// Do game loop with rendering and reading controls.
+#if defined(MACOS)
+
+			if (LeaveGameFlag)
+				break;
+#else
+#endif
 
 			if (Config_menu_flag)	{
 				if (!(Game_mode&GM_MULTI)) palette_save();
@@ -2787,7 +3423,11 @@ void game()
 				}
 			}
 	
+#if defined(MACOS)
+			if ( (Function_mode != FMODE_GAME ) && (Newdemo_state != ND_STATE_PLAYBACK ) && (Function_mode!=FMODE_EDITOR) )	{
+#else
 			if ( (Function_mode != FMODE_GAME ) && (Newdemo_state != ND_STATE_PLAYBACK ) && (Function_mode!=FMODE_EDITOR) )		{
+#endif
 				int choice, fmode;
 				fmode = Function_mode;
 				Function_mode = FMODE_GAME;
@@ -2798,9 +3438,18 @@ void game()
 			}
 
 			if (Function_mode != FMODE_GAME)
+#if defined(MACOS)
+				break;
+			gr_sync_display();
+#else
 				longjmp(LeaveGame,0);
+#endif
 		}
+#if defined(MACOS)
+	//} 
+#else
 	} 
+#endif
 
 	digi_stop_all();
 
@@ -2863,8 +3512,13 @@ grs_canvas * get_current_game_screen()
 
 ubyte exploding_flag = 0;
 
+#if defined(MACOS)
+extern void dump_used_textures_all();
+extern void kconfig_center_headset();
+#else
 extern dump_used_textures_all();
 extern kconfig_center_headset();
+#endif
 
 void ReadControls()
 {
@@ -3017,6 +3671,220 @@ void ReadControls()
 
 			john_cheat_func_2(key);
 
+#if defined(MACOS)
+#ifdef FINAL_CHEATS
+		if (Cheats_enabled) {
+			if (!(Game_mode&GM_MULTI) && key == cheat_wowie[cheat_wowie_index]) {
+				if (++cheat_wowie_index == CHEAT_WOWIE_LENGTH) {
+					int i;
+
+					HUD_init_message(TXT_WOWIE_ZOWIE);
+					digi_play_sample( SOUND_CHEATER, F1_0);
+
+					Players[Player_num].primary_weapon_flags |= 0xff ^ (HAS_PLASMA_FLAG | HAS_FUSION_FLAG);
+					Players[Player_num].secondary_weapon_flags |= 0xff ^ (HAS_SMART_FLAG | HAS_MEGA_FLAG);
+
+					for (i=0; i<3; i++)
+						Players[Player_num].primary_ammo[i] = Primary_ammo_max[i];
+					
+					for (i=0; i<3; i++)
+						Players[Player_num].secondary_ammo[i] = Secondary_ammo_max[i];
+					
+					#ifndef SHAREWARE
+					if (Newdemo_state == ND_STATE_RECORDING)
+						newdemo_record_laser_level(Players[Player_num].laser_level, MAX_LASER_LEVEL);
+					#endif
+
+					Players[Player_num].energy = MAX_ENERGY;
+					Players[Player_num].laser_level = MAX_LASER_LEVEL;
+					Players[Player_num].flags |= PLAYER_FLAGS_QUAD_LASERS;
+					update_laser_weapon_info();
+
+					cheat_wowie_index = 0;
+				}
+			}
+			else
+				cheat_wowie_index = 0;
+
+			if (!(Game_mode&GM_MULTI) && key == (0xaa^new_cheats[cheat_wowie2_index*NUM_NEW_CHEATS+CHEAT_WOWIE2_OFS])) {
+				if (++cheat_wowie2_index == CHEAT_WOWIE2_LENGTH) {
+					int i;
+
+					HUD_init_message("SUPER %s",TXT_WOWIE_ZOWIE);
+					digi_play_sample( SOUND_CHEATER, F1_0);
+
+					Players[Player_num].primary_weapon_flags = 0xff;
+					Players[Player_num].secondary_weapon_flags = 0xff;
+
+					for (i=0; i<MAX_PRIMARY_WEAPONS; i++)
+						Players[Player_num].primary_ammo[i] = Primary_ammo_max[i];
+					
+					for (i=0; i<MAX_SECONDARY_WEAPONS; i++)
+						Players[Player_num].secondary_ammo[i] = Secondary_ammo_max[i];
+					
+					#ifndef SHAREWARE
+					if (Newdemo_state == ND_STATE_RECORDING)
+						newdemo_record_laser_level(Players[Player_num].laser_level, MAX_LASER_LEVEL);
+					#endif
+
+					Players[Player_num].energy = MAX_ENERGY;
+					Players[Player_num].laser_level = MAX_LASER_LEVEL;
+					Players[Player_num].flags |= PLAYER_FLAGS_QUAD_LASERS;
+					update_laser_weapon_info();
+
+					cheat_wowie2_index = 0;
+				}
+			}
+			else
+				cheat_wowie2_index = 0;
+
+			if (!(Game_mode&GM_MULTI) && key == cheat_allkeys[cheat_allkeys_index]) {
+				if (++cheat_allkeys_index == CHEAT_ALLKEYS_LENGTH) {
+					HUD_init_message(TXT_ALL_KEYS);
+					digi_play_sample( SOUND_CHEATER, F1_0);
+					Players[Player_num].flags |= PLAYER_FLAGS_BLUE_KEY | PLAYER_FLAGS_RED_KEY | PLAYER_FLAGS_GOLD_KEY;
+
+					cheat_allkeys_index = 0;
+				}
+			}
+			else
+				cheat_allkeys_index = 0;
+
+
+			if (!(Game_mode&GM_MULTI) && key == cheat_invuln[cheat_invuln_index]) {
+				if (++cheat_invuln_index == CHEAT_INVULN_LENGTH) {
+					Players[Player_num].flags ^= PLAYER_FLAGS_INVULNERABLE;
+					HUD_init_message("%s %s!", TXT_INVULNERABILITY, (Players[Player_num].flags&PLAYER_FLAGS_INVULNERABLE)?TXT_ON:TXT_OFF);
+					digi_play_sample( SOUND_CHEATER, F1_0);
+					Players[Player_num].invulnerable_time = GameTime+i2f(1000);
+
+					cheat_invuln_index = 0;
+				}
+			}
+			else
+				cheat_invuln_index = 0;
+
+			if (!(Game_mode&GM_MULTI) && key == cheat_cloak[cheat_cloak_index]) {
+				if (++cheat_cloak_index == CHEAT_CLOAK_LENGTH) {
+					Players[Player_num].flags ^= PLAYER_FLAGS_CLOAKED;
+					HUD_init_message("%s %s!", TXT_CLOAK, (Players[Player_num].flags&PLAYER_FLAGS_CLOAKED)?TXT_ON:TXT_OFF);
+					digi_play_sample( SOUND_CHEATER, F1_0);
+					if (Players[Player_num].flags & PLAYER_FLAGS_CLOAKED) {
+						ai_do_cloak_stuff();
+						Players[Player_num].cloak_time = GameTime;
+					}
+
+					cheat_cloak_index = 0;
+				}
+			}
+			else
+				cheat_cloak_index = 0;
+
+			if (!(Game_mode&GM_MULTI) && key == cheat_shield[cheat_shield_index]) {
+				if (++cheat_shield_index == CHEAT_SHIELD_LENGTH) {
+					HUD_init_message(TXT_FULL_SHIELDS);
+					digi_play_sample( SOUND_CHEATER, F1_0);
+					Players[Player_num].shields = MAX_SHIELDS;
+
+					cheat_shield_index = 0;
+				}
+			}
+			else
+				cheat_shield_index = 0;
+
+			if (!(Game_mode&GM_MULTI) && key == cheat_warp[cheat_warp_index]) {
+				if (++cheat_warp_index == CHEAT_WARP_LENGTH) {
+					newmenu_item m;
+					char text[10]="";
+					int new_level_num;
+					int item;
+					digi_play_sample( SOUND_CHEATER, F1_0);
+					m.type=NM_TYPE_INPUT; m.text_len = 10; m.text = text;
+					item = newmenu_do( NULL, TXT_WARP_TO_LEVEL, 1, &m, NULL );
+					if (item != -1) {
+						new_level_num = atoi(m.text);
+						if (new_level_num!=0 && new_level_num>=0 && new_level_num<=Last_level)
+							StartNewLevel(new_level_num);
+					}
+
+					cheat_warp_index = 0;
+				}
+			}
+			else
+				cheat_warp_index = 0;
+
+			if (!(Game_mode&GM_MULTI) && key == cheat_astral[cheat_astral_index]) {
+				if (++cheat_astral_index == CHEAT_ASTRAL_LENGTH) {
+					digi_play_sample( SOUND_CHEATER, F1_0);
+					if ( Physics_cheat_flag==0xBADA55 )	{
+						Physics_cheat_flag = 0;
+					} else {
+						Physics_cheat_flag = 0xBADA55;
+					}
+					HUD_init_message("%s %s!", "Ghosty mode", Physics_cheat_flag==0xBADA55?TXT_ON:TXT_OFF);
+					cheat_astral_index = 0;
+				}
+			}
+			else
+				cheat_astral_index = 0;
+
+			if (!(Game_mode&GM_MULTI) && key == (0xaa^new_cheats[cheat_turbomode_index*NUM_NEW_CHEATS+CHEAT_TURBOMODE_OFS])) {
+				if (++cheat_turbomode_index == CHEAT_TURBOMODE_LENGTH) {
+					Game_turbo_mode ^= 1;
+					HUD_init_message("%s %s!", "Turbo mode", Game_turbo_mode?TXT_ON:TXT_OFF);
+					digi_play_sample( SOUND_CHEATER, F1_0);
+				}
+			}
+			else
+				cheat_turbomode_index = 0;
+
+			if (!(Game_mode&GM_MULTI) && key == (0xaa^new_cheats[cheat_newlife_index*NUM_NEW_CHEATS+CHEAT_NEWLIFE_OFS])) {
+				if (++cheat_newlife_index == CHEAT_NEWLIFE_LENGTH) {
+					if (Players[Player_num].lives<50) {
+						Players[Player_num].lives++;
+						HUD_init_message("Extra life!");
+						digi_play_sample( SOUND_CHEATER, F1_0);
+					}
+
+					cheat_newlife_index = 0;
+				}
+			}
+			else
+				cheat_newlife_index = 0;
+
+			if (!(Game_mode&GM_MULTI) && key == (0xaa^new_cheats[cheat_exitpath_index*NUM_NEW_CHEATS+CHEAT_EXITPATH_OFS])) {
+				if (++cheat_exitpath_index == CHEAT_EXITPATH_LENGTH) {
+					#ifdef SHOW_EXIT_PATH
+					if (create_special_path()) {
+						HUD_init_message("Exit path illuminated!");
+						digi_play_sample( SOUND_CHEATER, F1_0);
+					}
+					#endif
+
+					cheat_exitpath_index = 0;
+				}
+			}
+			else
+				cheat_exitpath_index = 0;
+
+
+			if (!(Game_mode&GM_MULTI) && key == (0xaa^new_cheats[cheat_robotpause_index*NUM_NEW_CHEATS+CHEAT_ROBOTPAUSE_OFS])) {
+				if (++cheat_robotpause_index == CHEAT_ROBOTPAUSE_LENGTH) {
+					Robot_firing_enabled = !Robot_firing_enabled;
+					HUD_init_message("%s %s!", "Robot firing", Robot_firing_enabled?TXT_ON:TXT_OFF);
+					digi_play_sample( SOUND_CHEATER, F1_0);
+
+					cheat_robotpause_index = 0;
+				}
+
+			}
+			else
+				cheat_robotpause_index = 0;
+
+
+		}
+#endif
+#else
 #ifdef FINAL_CHEATS
 		if (Cheats_enabled) {
 			if (!(Game_mode&GM_MULTI) && key == cheat_wowie[cheat_wowie_index]) {
@@ -3224,6 +4092,7 @@ void ReadControls()
 
 
 		}
+#endif
 #endif
 
 			john_cheat_func_3(key);
@@ -3700,6 +4569,201 @@ void ReadControls()
 				//	================================================================================================
 				//ALL KEYS BELOW HERE GO AWAY IN RELEASE VERSION
 
+#if defined(MACOS)
+			#ifndef RELEASE
+	
+				case KEY_DEBUGGED+KEY_0:	show_weapon_status();	break;
+
+				#ifdef SHOW_EXIT_PATH
+				case KEY_DEBUGGED+KEY_1:	create_special_path();	break;
+				#endif
+
+				case KEY_DEBUGGED+KEY_Y:
+					do_controlcen_destroyed_stuff(NULL);
+					break;
+
+				case KEY_BACKSP:
+				case KEY_CTRLED+KEY_BACKSP:
+				case KEY_ALTED+KEY_BACKSP:
+				case KEY_SHIFTED+KEY_BACKSP:
+				case KEY_SHIFTED+KEY_ALTED+KEY_BACKSP:
+				case KEY_CTRLED+KEY_ALTED+KEY_BACKSP:
+				case KEY_SHIFTED+KEY_CTRLED+KEY_BACKSP:
+				case KEY_SHIFTED+KEY_CTRLED+KEY_ALTED+KEY_BACKSP:
+
+ 						Int3(); break;
+
+				case KEY_DEBUGGED+KEY_S:			digi_reset(); break;
+
+				case KEY_DEBUGGED+KEY_P:
+	 				if (Game_suspended & SUSP_ROBOTS)
+	 					Game_suspended &= ~SUSP_ROBOTS;         //robots move
+	 				else
+	 					Game_suspended |= SUSP_ROBOTS;          //robots don't move
+					break;
+	
+
+	
+				case KEY_DEBUGGED+KEY_K:	Players[Player_num].shields = 1;	break;						//	a virtual kill
+				case KEY_DEBUGGED+KEY_SHIFTED + KEY_K:	Players[Player_num].shields = -1;	break;	//	an actual kill
+				case KEY_DEBUGGED+KEY_X: Players[Player_num].lives++; break; // Extra life cheat key.
+				case KEY_DEBUGGED+KEY_H:
+//					if (!(Game_mode & GM_MULTI) )	{
+						Players[Player_num].flags ^= PLAYER_FLAGS_CLOAKED;
+						if (Players[Player_num].flags & PLAYER_FLAGS_CLOAKED) {
+							#ifdef NETWORK
+							if (Game_mode & GM_MULTI)
+								multi_send_cloak();
+							#endif
+							ai_do_cloak_stuff();
+							Players[Player_num].cloak_time = GameTime;
+							mprintf((0, "You are cloaked!\n"));
+						} else
+							mprintf((0, "You are DE-cloaked!\n"));
+//					}
+					break;
+
+
+				case KEY_DEBUGGED+KEY_R:
+					Robot_firing_enabled = !Robot_firing_enabled;
+					break;
+
+				#ifdef EDITOR		//editor-specific functions
+
+					case KEY_E + KEY_DEBUGGED:
+							network_leave_game();
+							Function_mode = FMODE_EDITOR; 
+							break;
+	
+					case KEY_C + KEY_SHIFTED + KEY_DEBUGGED: 
+						if (!( Game_mode & GM_MULTI ))
+							move_player_2_segment(Cursegp,Curside); 
+						break;   //move eye to curseg
+
+	
+					case KEY_DEBUGGED+KEY_W:	draw_world_from_game();	break;
+
+				#endif	//#ifdef EDITOR
+	
+				//flythrough keys
+				// case KEY_DEBUGGED+KEY_SHIFTED+KEY_F:	toggle_flythrough(); break;
+				// case KEY_LEFT:          ft_preference=FP_LEFT; break;
+				// case KEY_RIGHT: 			ft_preference=FP_RIGHT; break;
+				// case KEY_UP:            ft_preference=FP_UP; break;
+				// case KEY_DOWN:          ft_preference=FP_DOWN; break;
+	
+				case KEY_DEBUGGED+KEY_LAPOSTRO: Show_view_text_timer = 0x30000; object_goto_next_viewer(); break;
+				case KEY_DEBUGGED+KEY_SHIFTED+KEY_LAPOSTRO: Viewer=ConsoleObject; break;
+	
+#ifndef NDEBUG
+	  			case KEY_DEBUGGED+KEY_O: toggle_outline_mode(); break;
+#endif
+	  			case KEY_DEBUGGED+KEY_T:
+					*Toggle_var = !*Toggle_var;
+					mprintf((0, "Variable at %08x set to %i\n", Toggle_var, *Toggle_var));
+					break;
+	  			case KEY_DEBUGGED + KEY_L: 
+					if (++Lighting_on >= 2) Lighting_on = 0;
+					break;
+	  			case KEY_DEBUGGED + KEY_SHIFTED + KEY_L: 
+					Beam_brightness=0x38000-Beam_brightness; break;
+	  			case KEY_PAD5: slew_stop(); break;
+	
+	  			case KEY_DEBUGGED + KEY_F11: play_test_sound(); break;
+	  			case KEY_DEBUGGED + KEY_SHIFTED+KEY_F11: advance_sound(); play_test_sound(); break;
+
+				case KEY_DEBUGGED +KEY_F4: {
+					//fvi_info hit_data;
+					//vms_vector p0 = {-0x1d99a7,-0x1b20000,0x186ab7f};
+					//vms_vector p1 = {-0x217865,-0x1b20000,0x187de3e};
+					//find_vector_intersection(&hit_data,&p0,0x1b9,&p1,0x40000,0x0,NULL,-1);
+					break;
+				}
+	
+				case KEY_DEBUGGED + KEY_M:
+					Debug_spew = !Debug_spew;
+					if (Debug_spew) {
+						mopen( 0, 8, 1, 78, 16, "Debug Spew");
+						HUD_init_message( "Debug Spew: ON" );
+					} else {
+						mclose( 0 );
+						HUD_init_message( "Debug Spew: OFF" );
+					}
+					break;		
+	
+				case KEY_DEBUGGED + KEY_C:	
+
+						do_cheat_menu(); 
+						break;
+				case KEY_DEBUGGED + KEY_SHIFTED + KEY_A:
+						do_megawow_powerup(10);
+						break;
+				case KEY_DEBUGGED + KEY_A:	{
+						do_megawow_powerup(200);
+//						if ( Game_mode & GM_MULTI )	{
+//							nm_messagebox( NULL, 1, "Damn", "CHEATER!\nYou cannot use the\nmega-thing in network mode." );
+//							Network_message_reciever = 100;		// Send to everyone...
+//							sprintf( Network_message, "%s cheated!", Players[Player_num].callsign);
+//						} else {
+//							do_megawow_powerup();
+//						}
+						break;
+				}
+	
+	 			case KEY_DEBUGGED+KEY_F:	framerate_on = !framerate_on; break;
+ 	
+ 				case KEY_DEBUGGED+KEY_SPACEBAR:              //KEY_F7:                       // Toggle physics flying
+ 					slew_stop();
+					game_flush_inputs();
+ 					if ( ConsoleObject->control_type != CT_FLYING ) {
+ 						fly_init(ConsoleObject);
+ 						Game_suspended &= ~SUSP_ROBOTS;         //robots move
+ 					} else {
+ 						slew_init(ConsoleObject);                                              //start player slewing
+ 						Game_suspended |= SUSP_ROBOTS;          //robots don't move
+					}
+					break;
+		
+				case KEY_DEBUGGED+KEY_COMMA: Render_zoom = fixmul(Render_zoom,62259); break;
+				case KEY_DEBUGGED+KEY_PERIOD: Render_zoom = fixmul(Render_zoom,68985); break;
+	
+				case KEY_DEBUGGED+KEY_P+KEY_SHIFTED: Debug_pause = 1; break;
+	
+				//case KEY_F7: {
+				//	char mystr[30];
+				//	sprintf(mystr,"mark %i start",Mark_count);
+				//	_MARK_(mystr);
+				//	break;
+				//}
+				//case KEY_SHIFTED+KEY_F7: {
+				//	char mystr[30];
+				//	sprintf(mystr,"mark %i end",Mark_count);
+				//	Mark_count++;
+				//	_MARK_(mystr);
+				//	break;
+				//}
+	
+		
+#ifndef NDEBUG
+				case KEY_DEBUGGED+KEY_F8: speedtest_init(); Speedtest_count = 1;	break;
+				case KEY_DEBUGGED+KEY_F9: speedtest_init(); Speedtest_count = 10;	break;
+
+				case KEY_DEBUGGED+KEY_D:
+					if ((Game_double_buffer = !Game_double_buffer)!=0)
+						init_cockpit();
+					break;
+#endif
+
+#ifdef EDITOR
+				case KEY_DEBUGGED+KEY_Q:
+					stop_time();
+					dump_used_textures_all();
+					start_time();
+					break;
+#endif
+
+				#endif		//#ifndef RELEASE
+#else
 			#ifndef RELEASE
 	
 				case KEY_DEBUGGED+KEY_0:	show_weapon_status();	break;
@@ -3892,6 +4956,7 @@ void ReadControls()
 #endif
 
 				#endif		//#ifndef RELEASE
+#endif
 
 				default:        break;
 
@@ -3984,6 +5049,11 @@ mem_check();
 		calc_frame_time();
 
 		dead_player_frame();
+#if defined(MACOS)
+		if (LeaveGameFlag)
+			return;
+#else
+#endif
 		if (Newdemo_state != ND_STATE_PLAYBACK)
 			do_controlcen_dead_frame();
 
@@ -4028,7 +5098,12 @@ mem_check();
 		if ( Newdemo_state == ND_STATE_PLAYBACK )	{
 			newdemo_playback_one_frame();
 			if ( Newdemo_state != ND_STATE_PLAYBACK )		{
+#if defined(MACOS)
+				DoLeaveGame();		// Go back to menu
+				return;
+#else
 				longjmp( LeaveGame, 0 );		// Go back to menu
+#endif
 			}
 		} else	
 		{ // Note the link to above!
@@ -4071,7 +5146,11 @@ mem_check();
 						if (Fusion_next_sound_time < GameTime) {
 							if (Fusion_charge > F1_0*2) {
 								digi_play_sample( 11, F1_0 );
+#if defined(MACOS)
+								apply_damage_to_player(ConsoleObject, ConsoleObject, psrand() * 4);
+#else
 								apply_damage_to_player(ConsoleObject, ConsoleObject, rand() * 4);
+#endif
 							} else {
 								create_awareness_event(ConsoleObject, PA_WEAPON_ROBOT_COLLISION);
 								digi_play_sample( SOUND_FUSION_WARMUP, F1_0 );
@@ -4080,7 +5159,11 @@ mem_check();
 									multi_send_play_sound(SOUND_FUSION_WARMUP, F1_0);
 								#endif
 							}
+#if defined(MACOS)
+							Fusion_next_sound_time = GameTime + F1_0/8 + psrand()/4;
+#else
 							Fusion_next_sound_time = GameTime + F1_0/8 + rand()/4;
+#endif
 						}
 					}
 				}
@@ -4098,8 +5181,13 @@ mem_check();
 
 					Global_laser_firing_count = 0;
 
+#if defined(MACOS)
+					ConsoleObject->mtype.phys_info.rotvel.x += (psrand() - 16384)/8;
+					ConsoleObject->mtype.phys_info.rotvel.z += (psrand() - 16384)/8;
+#else
 					ConsoleObject->mtype.phys_info.rotvel.x += (rand() - 16384)/8;
 					ConsoleObject->mtype.phys_info.rotvel.z += (rand() - 16384)/8;
+#endif
 					make_random_vector(&rand_vec);
 
 					bump_amount = F1_0*4;
@@ -4176,6 +5264,83 @@ void powerup_grab_cheat_all(void)
 
 int	Last_level_path_created = -1;
 
+#if defined(MACOS)
+#ifdef SHOW_EXIT_PATH
+
+//	------------------------------------------------------------------------------------------------------------------
+//	Create path for player from current segment to goal segment.
+//	Return true if path created, else return false.
+int mark_player_path_to_segment(int segnum)
+{
+	int		i;
+	object	*objp = ConsoleObject;
+	short		player_path_length=0;
+	int		player_hide_index=-1;
+
+	if (Last_level_path_created == Current_level_num) {
+		return 0;
+	}
+
+	Last_level_path_created = Current_level_num;
+
+	if (create_path_points(objp, objp->segnum, segnum, Point_segs_free_ptr, &player_path_length, 100, 0, 0, -1) == -1) {
+		mprintf((0, "Unable to form path of length %i for myself\n", 100));
+		return 0;
+	}
+
+	player_hide_index = Point_segs_free_ptr - Point_segs;
+	Point_segs_free_ptr += player_path_length;
+
+	if (Point_segs_free_ptr - Point_segs + MAX_PATH_LENGTH*2 > MAX_POINT_SEGS) {
+		mprintf((1, "Can't create path.  Not enough point_segs.\n"));
+		ai_reset_all_paths();
+		return 0;
+	}
+
+	for (i=1; i<player_path_length; i++) {
+		int			segnum, objnum;
+		vms_vector	seg_center;
+		object		*obj;
+
+		segnum = Point_segs[player_hide_index+i].segnum;
+		mprintf((0, "%3i ", segnum));
+		seg_center = Point_segs[player_hide_index+i].point;
+
+		objnum = obj_create( OBJ_POWERUP, POW_ENERGY, segnum, &seg_center, &vmd_identity_matrix, Powerup_info[POW_ENERGY].size, CT_POWERUP, MT_NONE, RT_POWERUP);
+		if (objnum == -1) {
+			Int3();		//	Unable to drop energy powerup for path
+			return 1;
+		}
+
+		obj = &Objects[objnum];
+		obj->rtype.vclip_info.vclip_num = Powerup_info[obj->id].vclip_num;
+		obj->rtype.vclip_info.frametime = Vclip[obj->rtype.vclip_info.vclip_num].frame_time;
+		obj->rtype.vclip_info.framenum = 0;
+		obj->lifeleft = F1_0*100 + psrand() * 4;
+	}
+
+	mprintf((0, "\n"));
+	return 1;
+}
+
+//	Return true if it happened, else return false.
+int create_special_path(void)
+{
+	int	i,j;
+
+	//	---------- Find exit doors ----------
+	for (i=0; i<=Highest_segment_index; i++)
+		for (j=0; j<MAX_SIDES_PER_SEGMENT; j++)
+			if (Segments[i].children[j] == -2) {
+				mprintf((0, "Exit at segment %i\n", i));
+				return mark_player_path_to_segment(i);
+			}
+
+	return 0;
+}
+
+#endif
+#else
 #ifdef SHOW_EXIT_PATH
 
 //	------------------------------------------------------------------------------------------------------------------
@@ -4250,6 +5415,7 @@ int create_special_path(void)
 	return 0;
 }
 
+#endif
 #endif
 
 

@@ -64,9 +64,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  *
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: tmapflat.c 1.21 1996/12/04 19:27:54 matt Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: tmapflat.c 1.13 1995/02/20 18:23:24 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 
 #include <math.h>
@@ -76,6 +82,10 @@ static char rcsid[] = "$Id: tmapflat.c 1.13 1995/02/20 18:23:24 john Exp $";
 #include <conio.h>
 #include <stdlib.h>
 
+#if defined(MACOS)
+#include "pa_enabl.h"                   //$$POLY_ACC
+#else
+#endif
 // #include "hack3df.h"
 #include "fix.h"
 #include "mono.h"
@@ -88,8 +98,15 @@ static char rcsid[] = "$Id: tmapflat.c 1.13 1995/02/20 18:23:24 john Exp $";
 
 //#include "tmapext.h"
 
+#if defined(MACOS)
+#else
 void (*scanline_func)();
+#endif
 
+#if defined(MACOS)
+extern void texture_map_flat(g3ds_tmap *t);
+extern void texture_map_flat_faded(g3ds_tmap *t);
+#else
 extern void asm_tmap_scanline_shaded();	// In tmapfade.asm
 
 // -------------------------------------------------------------------------------------
@@ -251,23 +268,42 @@ void gr_upoly_tmap(int nverts, int *vert )
 {
 	gr_upoly_tmap_ylr(nverts, vert, tmap_scanline_flat);
 }
+#endif
 
 #include "3d.h"
 #include "error.h"
+#if defined(MACOS)
+
+#if defined(POLY_ACC)
+#include "poly_acc.h"
+#endif
+#else
+#endif
 
 typedef struct pnt2d {
 	fix x,y;
 } pnt2d;
 
+#if defined(MACOS)
+//#pragma off (unreferenced)		//bp not referenced
+#else
 #pragma off (unreferenced)		//bp not referenced
+#endif
 
 //this takes the same partms as draw_tmap, but draws a flat-shaded polygon
 void draw_tmap_flat(grs_bitmap *bp,int nverts,g3s_point **vertbuf)
 {
+#if defined(MACOS)
+	g3ds_tmap	my_tmap;
+#else
 	pnt2d	points[MAX_TMAP_VERTS];
+#endif
 	int	i;
 	fix	average_light;
+#if defined(MACOS)
+#else
 	int	color;
+#endif
 
 	Assert(nverts < MAX_TMAP_VERTS);
 
@@ -285,29 +321,75 @@ void draw_tmap_flat(grs_bitmap *bp,int nverts,g3s_point **vertbuf)
 	else if (average_light > NUM_LIGHTING_LEVELS-1)
 		average_light = NUM_LIGHTING_LEVELS-1;
 
+#if defined(MACOS)
+	tmap_flat_color = gr_fade_table[average_light*256 + bp->avg_color];
+#else
 	color = gr_fade_table[average_light*256 + bp->avg_color];
 	gr_setcolor(color);
+#endif
 
+#if defined(MACOS)
+	my_tmap.nv = nverts;
+
+	for (i=0; i<nverts; i++) {
+		my_tmap.verts[i].x2d = vertbuf[i]->p3_sx;
+		my_tmap.verts[i].y2d = vertbuf[i]->p3_sy;
+#else
 	for (i=0;i<nverts;i++) {
 		points[i].x = vertbuf[i]->p3_sx;
 		points[i].y = vertbuf[i]->p3_sy;
+#endif
 	}
 
+#if defined(MACOS)
+#if defined(POLY_ACC)
+    if ( Gr_scanline_darkening_level >= GR_FADE_LEVELS )
+        i = 255;
+    else
+        i = 255.0 * (float)(GR_FADE_LEVELS - Gr_scanline_darkening_level)/(float)GR_FADE_LEVELS;
+	pa_draw_flat(&my_tmap, tmap_flat_color, i);
+#else
+	if ( Gr_scanline_darkening_level >= GR_FADE_LEVELS )
+		texture_map_flat( &my_tmap );
+	else	{
+		tmap_flat_shade_value = Gr_scanline_darkening_level;
+		texture_map_flat_faded( &my_tmap );
+	}	
+#endif
+#else
 	gr_upoly_tmap(nverts,(int *) points);
+#endif
 
 }
+#if defined(MACOS)
+#else
 #pragma on (unreferenced)
 
+#endif
 
 //	-----------------------------------------------------------------------------------------
+#if defined(MACOS)
+//	This is the gr_upoly-like interface to the texture mapper which uses texture-mapper compatible
+//	(ie, avoids cracking) edge/delta computation.
+void gr_upoly_tmap(int nverts, int *vert )
+#else
 //This is like gr_upoly_tmap() but instead of drawing, it calls the specified
 //function with ylr values
 void gr_upoly_tmap_ylr(int nverts, int *vert, void *ylr_func() )
+#endif
 {
 	g3ds_tmap	my_tmap;
+#if defined(MACOS)
+	int	i;
+#else
 	int			i;
+#endif
 
+#if defined(MACOS)
+	Assert(nverts < MAX_TMAP_VERTS);
+#else
 	//--now called from g3_start_frame-- init_interface_vars_to_assembler();
+#endif
 
 	my_tmap.nv = nverts;
 
@@ -315,10 +397,38 @@ void gr_upoly_tmap_ylr(int nverts, int *vert, void *ylr_func() )
 		my_tmap.verts[i].x2d = *vert++;
 		my_tmap.verts[i].y2d = *vert++;
 	}
+#if defined(MACOS)
+	tmap_flat_color = COLOR;
+#else
+#endif
 
+#if defined(MACOS)
+#ifdef _3DFX
+   _3dfx_DrawFlatShadedPoly( &my_tmap, _3dfx_PaletteToARGB( COLOR ) );
+   if ( _3dfx_skip_ddraw )
+      return;
+#endif
+#else
 	scanline_func = ylr_func;
+#endif
 
+#if defined(MACOS)
+#if defined(POLY_ACC)
+    if ( Gr_scanline_darkening_level >= GR_FADE_LEVELS )
+        i = 255;
+    else
+        i = 255.0 * (float)(GR_FADE_LEVELS - Gr_scanline_darkening_level)/(float)GR_FADE_LEVELS;
+    pa_draw_flat(&my_tmap, tmap_flat_color, i);
+#else
+	if ( Gr_scanline_darkening_level >= GR_FADE_LEVELS )
+		texture_map_flat( &my_tmap );
+	else	{
+		tmap_flat_shade_value = Gr_scanline_darkening_level;
+		texture_map_flat_faded( &my_tmap );
+	}	
+#endif
+#else
 	texture_map_flat(&my_tmap, COLOR);
+#endif
 }
-
 

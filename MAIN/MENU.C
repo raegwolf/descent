@@ -22,9 +22,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  *
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: menu.c 2.5 1995/10/07 13:19:09 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: menu.c 2.5 1995/10/07 13:19:09 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <time.h>
 #include <stdio.h>
@@ -108,23 +114,46 @@ static char rcsid[] = "$Id: menu.c 2.5 1995/10/07 13:19:09 john Exp $";
 #define MENU_SHOW_CREDITS			23
 #define MENU_ORDER_INFO				24
 #define MENU_PLAY_SONG				25
+#if defined(MACOS)
+#else
 
+#endif
 //ADD_ITEM("Start netgame...", MENU_START_NETGAME, -1 );
 //ADD_ITEM("Send net message...", MENU_SEND_NET_MESSAGE, -1 );
 
 #define ADD_ITEM(t,value,key)  do { m[num_options].type=NM_TYPE_MENU; m[num_options].text=t; menu_choice[num_options]=value;num_options++; } while (0)
 
 extern int last_joy_time;		//last time the joystick was used
+#if defined(MACOS)
+#if !defined(NDEBUG) && !defined(MACOS)
+extern int speedtest_on;
+#else
+#define speedtest_on 0
+#endif
+#else
 #ifndef NDEBUG
 extern int speedtest_on;
 #else
 #define speedtest_on 0
+#endif
 #endif
 
 ubyte do_auto_demo = 1;			// Flag used to enable auto demo starting in main menu.
 int Player_default_difficulty; // Last difficulty level chosen by the player
 int Auto_leveling_on = 0;
 int Menu_draw_copyright = 0;
+#if defined(MACOS)
+
+void do_option ( int select);
+void do_new_game_menu();
+void do_detail_level_menu_custom(void);
+void do_multi_player_menu();
+void do_load_game_menu();
+void do_save_game_menu();
+void do_order_menu();
+void do_credits_menu();
+#else
+#endif
 
 void autodemo_menu_check(int nitems, newmenu_item * items, int *last_key, int citem )
 {
@@ -169,6 +198,46 @@ void create_main_menu(newmenu_item *m, int *menu_choice, int *callers_num_option
 {
 	int	num_options;
 
+#if defined(MACOS)
+	#ifndef DEMO_ONLY
+	num_options = 0;
+
+//	//	Move down to allow for space to display "Destination Saturn"
+//	if (Saturn) {
+//		int	i;
+//
+//		for (i=0; i<4; i++)
+//			ADD_ITEM("", 0, -1);
+//
+//		if (First_time) {
+//			main_menu_choice = 4;
+//			First_time = 0;
+//		}
+//	}
+
+	ADD_ITEM(TXT_NEW_GAME,MENU_NEW_GAME,KEY_N);
+
+#ifdef SHAREWARE
+	if (get_game_list(NULL)>0)
+#endif
+
+  	ADD_ITEM(TXT_LOAD_GAME,MENU_LOAD_GAME,KEY_L);
+
+	/* MACOS graphics-first port: NETWORK is intentionally not built yet. */
+	#if !defined(MACOS)
+	ADD_ITEM(TXT_MULTIPLAYER_,MENU_MULTIPLAYER,-1);
+	#endif
+
+	ADD_ITEM(TXT_OPTIONS_, MENU_CONFIG, -1 );
+	ADD_ITEM(TXT_CHANGE_PILOTS,MENU_NEW_PLAYER,unused);
+	ADD_ITEM(TXT_VIEW_DEMO,MENU_DEMO_PLAY,0);
+	ADD_ITEM(TXT_VIEW_SCORES,MENU_VIEW_SCORES,KEY_V);
+	#ifdef SHAREWARE
+	ADD_ITEM(TXT_ORDERING_INFO,MENU_ORDER_INFO,-1);
+	#endif
+	ADD_ITEM(TXT_CREDITS,MENU_SHOW_CREDITS,-1);
+	#endif
+#else
 	#ifndef DEMO_ONLY
 	num_options = 0;
 
@@ -204,6 +273,7 @@ void create_main_menu(newmenu_item *m, int *menu_choice, int *callers_num_option
 	#endif
 	ADD_ITEM(TXT_CREDITS,MENU_SHOW_CREDITS,-1);
 	#endif
+#endif
 	ADD_ITEM(TXT_QUIT,MENU_QUIT,KEY_Q);
 
 	#ifndef RELEASE
@@ -580,10 +650,47 @@ void do_detail_level_menu_custom(void)
 	set_custom_detail_vars();
 }
 
+#if defined(MACOS)
+void do_new_game_menu()
+#else
 do_new_game_menu()
+#endif
 {
+#if defined(MACOS)
+	int new_level_num,player_highest_level;
+#else
 	int n_missions,new_level_num,player_highest_level;
+#endif
 
+#if defined(MACOS)
+#ifndef SHAREWARE
+	int n_missions = build_mission_list(0);
+
+	if (n_missions > 1) {
+		int new_mission_num,i, default_mission;
+		char * m[MAX_MISSIONS];
+
+		default_mission = 0;
+		for (i=0;i<n_missions;i++) {
+			m[i] = Mission_list[i].mission_name;
+			if ( !stricmp( m[i], config_last_mission ) )	
+				default_mission = i;
+		}
+
+		new_mission_num = newmenu_listbox1( "New Game\n\nSelect mission", n_missions, m, 1, default_mission, NULL );
+
+		if (new_mission_num == -1)
+			return;		//abort!
+
+		strcpy(config_last_mission, m[new_mission_num]  );
+		
+		if (!load_mission(new_mission_num)) {
+			nm_messagebox( NULL, 1, TXT_OK, "Error in Mission file"); 
+			return;
+		}
+	}
+#endif
+#else
 #ifndef SHAREWARE
 	n_missions = build_mission_list(0);
 
@@ -611,6 +718,7 @@ do_new_game_menu()
 		}
 	}
 #endif
+#endif
 
 	new_level_num = 1;
 
@@ -633,7 +741,11 @@ try_again:
 
 		strcpy(num_text,"1");
 
+#if defined(MACOS)
+		choice = newmenu_do( NULL, TXT_SELECT_START_LEV, 2, m, NULL );
+#else
 		choice = newmenu_do( NULL, TXT_SELECT_START_LEV, 2, &m, NULL );
+#endif
 
 		if (choice==-1 || m[1].text[0]==0)
 			return;
@@ -668,7 +780,11 @@ try_again:
 
 }
 
+#if defined(MACOS)
+void do_load_game_menu()
+#else
 do_load_game_menu()
+#endif
 {
 	newmenu_item m[N_SAVE_SLOTS];
 	char *saved_text[N_SAVE_SLOTS];
@@ -708,7 +824,11 @@ do_load_game_menu()
 	}
 }
 
+#if defined(MACOS)
+void do_save_game_menu()
+#else
 do_save_game_menu()
+#endif
 {
 	newmenu_item m[N_SAVE_SLOTS];
 	char *saved_text_ptrs[N_SAVE_SLOTS];
@@ -837,6 +957,4 @@ void do_multi_player_menu()
 	} while( choice > -1 );
 
 }
-
-
 

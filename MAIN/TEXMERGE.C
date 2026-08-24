@@ -115,9 +115,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  * 
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: texmerge.c 2.0 1995/02/27 11:31:08 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: texmerge.c 2.0 1995/02/27 11:31:08 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdlib.h>
 
@@ -128,6 +134,12 @@ static char rcsid[] = "$Id: texmerge.c 2.0 1995/02/27 11:31:08 john Exp $";
 #include "mono.h"
 #include "rle.h"
 #include "piggy.h"
+#if defined(MACOS)
+
+void merge_textures_super_xparent( int type, grs_bitmap * bottom_bmp, grs_bitmap * top_bmp, ubyte * dest_data );
+void merge_textures_new( int type, grs_bitmap * bottom_bmp, grs_bitmap * top_bmp, ubyte * dest_data );
+#else
+#endif
 
 #define MAX_NUM_CACHE_BITMAPS 50
 
@@ -274,6 +286,58 @@ grs_bitmap * texmerge_get_cached_bitmap( int tmap_bottom, int tmap_top )
 	return Cache[least_recently_used].bitmap;
 }
 
+#if defined(MACOS)
+#define TRANSPARENCY_COLOR 255
+void gr_merge_textures(ubyte *bottom_data, ubyte *top_data, ubyte *dest_data) {
+	int x, y;
+	ubyte c;
+	for (y=0; y<64; y++ )
+		for (x=0; x<64; x++ )	{
+			c = top_data[ 64*y+x ];		
+			if (c==TRANSPARENCY_COLOR)
+				c = bottom_data[ 64*y+x ];
+			*dest_data++ = c;
+		}
+}
+
+void gr_merge_textures_1(ubyte *bottom_data, ubyte *top_data, ubyte *dest_data) {
+	int x, y;
+	ubyte c;
+	for (y=0; y<64; y++ )
+		for (x=0; x<64; x++ )	{
+			c = top_data[ 64*x+(63-y) ];		
+			if (c==TRANSPARENCY_COLOR)
+				c = bottom_data[ 64*y+x ];
+			*dest_data++ = c;
+		}
+}
+
+void gr_merge_textures_2(ubyte *bottom_data, ubyte *top_data, ubyte *dest_data) {
+	int x, y;
+	ubyte c;
+	for (y=0; y<64; y++ )
+		for (x=0; x<64; x++ )	{
+			c = top_data[ 64*(63-y)+(63-x) ];
+			if (c==TRANSPARENCY_COLOR)
+				c = bottom_data[ 64*y+x ];
+			*dest_data++ = c;
+		}
+}
+
+void gr_merge_textures_3(ubyte *bottom_data, ubyte *top_data, ubyte *dest_data) {
+	int x, y;
+	ubyte c;
+	for (y=0; y<64; y++ )
+		for (x=0; x<64; x++ )	{
+			c = top_data[ 64*(63-x)+y  ];
+			if (c==TRANSPARENCY_COLOR)
+				c = bottom_data[ 64*y+x ];
+			*dest_data++ = c;
+		}
+}
+
+#else
+#endif
 void merge_textures_new( int type, grs_bitmap * bottom_bmp, grs_bitmap * top_bmp, ubyte * dest_data )
 {
 //	ubyte c;

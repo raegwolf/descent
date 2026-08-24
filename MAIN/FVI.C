@@ -236,8 +236,11 @@ extern int Physics_cheat_flag;
 
 #define face_type_num(nfaces,face_num,tri_edge) ((nfaces==1)?0:(tri_edge*2 + face_num))
 
+#if defined(MACOS)
+/* The Watcom x86 implementation is replaced by adjacent FVI_OFLOW_C.C. */
 int oflow_check(fix a,fix b);
-
+#else
+int oflow_check(fix a,fix b);
 #pragma aux oflow_check parm [eax] [ebx] value [eax] modify exact [eax ebx edx] = \
    "cdq"				\
 	"xor eax,edx"	\
@@ -251,6 +254,7 @@ int oflow_check(fix a,fix b);
 	"or   dx,dx"	\
 	"setnz al"		\
 	"movzx eax,al";
+#endif
 
 
 //find the point on the specified plane where the line intersects

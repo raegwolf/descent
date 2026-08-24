@@ -113,8 +113,14 @@ static char rcsid[] = "$Id: cfile.c 1.24 1995/03/15 14:20:27 john Exp $";
 #include <dos.h>
 #include <fcntl.h>
 #include <io.h>
+#if defined(MACOS)
+#include <sys/types.h>
+#include <sys/stat.h>
+#include "psstring.h"
+#else
 #include <sys\types.h>
 #include <sys\stat.h>
+#endif
 #include <errno.h>
 #include <string.h>
 
@@ -159,6 +165,13 @@ FILE * cfile_get_filehandle( char * filename, char * mode )
 	
 	descent_critical_error = 0;
 	fp = fopen( filename, mode );
+#if defined(MACOS)
+	if (fp == NULL) {
+		strcpy(temp, "resources/");
+		strcat(temp, filename);
+		fp = fopen(temp, mode);
+	}
+#endif
 	if ( fp && descent_critical_error )	{
 		fclose(fp);
 		fp = NULL;

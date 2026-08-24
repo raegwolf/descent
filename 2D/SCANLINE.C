@@ -51,6 +51,8 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 int Gr_scanline_darkening_level = GR_FADE_LEVELS;
 
+#if defined(MACOS)
+#if 0
 void gr_linear_darken( ubyte * dest, int darkening_level, int count, ubyte * fade_table );
 #pragma aux gr_linear_darken parm [edi] [eax] [ecx] [edx] modify exact [eax ebx ecx edx edi] = \
 "					xor	ebx, ebx					"	\
@@ -61,6 +63,47 @@ void gr_linear_darken( ubyte * dest, int darkening_level, int count, ubyte * fad
 "					inc	edi						"	\
 "					dec	ecx						"	\
 "					jnz	gld_loop					"	
+#else
+void gr_linear_darken( ubyte * dest, int darkening_level, int count, ubyte * fade_table )
+{
+	int i;
+
+	for (i=0; i<count; i++ )	{
+		*dest = fade_table[*dest+(darkening_level*256)];
+		dest++;
+	}
+}
+
+void gr_linear_stosd( void * destp, ubyte color, unsigned int count )
+{
+	ubyte *dest = destp;
+	int i, x;
+
+	if (count > 3) {			
+		while ((intptr_t)(dest) & 0x3) { *dest++ = color; count--; };
+		if (count >= 4) {
+			x = (color << 24) | (color << 16) | (color << 8) | color;
+			while (count > 4) { *(int *)dest = x; dest += 4; count -= 4; };
+		}
+		while (count > 0) { *dest++ = color; count--; };
+	} else {
+		for (i=0; i<count; i++ )
+			*dest++ = color;
+	}
+}
+#endif
+#else
+void gr_linear_darken( ubyte * dest, int darkening_level, int count, ubyte * fade_table );
+#pragma aux gr_linear_darken parm [edi] [eax] [ecx] [edx] modify exact [eax ebx ecx edx edi] = \
+"					xor	ebx, ebx					"	\
+"					mov	bh, al					"  \
+"gld_loop:		mov	bl, [edi]				"	\
+"					mov	al, [ebx+edx]			"	\
+"					mov	[edi], al				"	\
+"					inc	edi						"	\
+"					dec	ecx						"	\
+"					jnz	gld_loop					"	
+#endif
 
 void gr_uscanline( int x1, int x2, int y )
 {
@@ -70,12 +113,23 @@ void gr_uscanline( int x1, int x2, int y )
 		case BM_LINEAR:
 			gr_linear_stosd( DATA + ROWSIZE*y + x1, COLOR, x2-x1+1);
 			break;
+#if defined(MACOS)
+		#if 0
 		case BM_MODEX:
 			gr_modex_uscanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
 			break;
 		case BM_SVGA:
 			gr_vesa_scanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
 			break;
+		#endif
+#else
+		case BM_MODEX:
+			gr_modex_uscanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
+			break;
+		case BM_SVGA:
+			gr_vesa_scanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
+			break;
+#endif
 		}
 	} else {
 		switch(TYPE)
@@ -83,12 +137,23 @@ void gr_uscanline( int x1, int x2, int y )
 		case BM_LINEAR:
 			gr_linear_darken( DATA + ROWSIZE*y + x1, Gr_scanline_darkening_level, x2-x1+1, gr_fade_table);
 			break;
+#if defined(MACOS)
+		#if 0
 		case BM_MODEX:
 			gr_modex_uscanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
 			break;
 		case BM_SVGA:
 			gr_vesa_scanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
 			break;
+		#endif
+#else
+		case BM_MODEX:
+			gr_modex_uscanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
+			break;
+		case BM_SVGA:
+			gr_vesa_scanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
+			break;
+#endif
 		}
 	}
 }
@@ -111,12 +176,23 @@ void gr_scanline( int x1, int x2, int y )
 		case BM_LINEAR:
 			gr_linear_stosd( DATA + ROWSIZE*y + x1, COLOR, x2-x1+1);
 			break;
+#if defined(MACOS)
+		#if 0
 		case BM_MODEX:
 			gr_modex_uscanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
 			break;
 		case BM_SVGA:
 			gr_vesa_scanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
 			break;
+		#endif
+#else
+		case BM_MODEX:
+			gr_modex_uscanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
+			break;
+		case BM_SVGA:
+			gr_vesa_scanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
+			break;
+#endif
 		}
 	} else {
 		switch(TYPE)
@@ -124,14 +200,24 @@ void gr_scanline( int x1, int x2, int y )
 		case BM_LINEAR:
 			gr_linear_darken( DATA + ROWSIZE*y + x1, Gr_scanline_darkening_level, x2-x1+1, gr_fade_table);
 			break;
+#if defined(MACOS)
+		#if 0
 		case BM_MODEX:
 			gr_modex_uscanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
 			break;
 		case BM_SVGA:
 			gr_vesa_scanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
 			break;
+		#endif
+#else
+		case BM_MODEX:
+			gr_modex_uscanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
+			break;
+		case BM_SVGA:
+			gr_vesa_scanline( x1+XOFFSET, x2+XOFFSET, y+YOFFSET, COLOR );
+			break;
+#endif
 		}
 	}
 }
-
 

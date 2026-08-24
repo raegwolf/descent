@@ -83,7 +83,13 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 #include "gr.h"
 #include "grdef.h"
+#if defined(MACOS)
+//#include "dpmi.h"
+
+void build_colormap_good( ubyte * palette, ubyte * colormap, int * freq );
+#else
 #include "dpmi.h"
+#endif
 
 grs_bitmap *gr_create_bitmap(int w, int h )
 {
@@ -155,7 +161,11 @@ grs_bitmap *gr_create_sub_bitmap(grs_bitmap *bm, int x, int y, int w, int h )
 }
 
 
+#if defined(MACOS)
+void gr_free_bitmap(grs_bitmap *bm )
+#else
 gr_free_bitmap(grs_bitmap *bm )
+#endif
 {
 	if (bm->bm_data!=NULL)	
     free(bm->bm_data);
@@ -164,12 +174,68 @@ gr_free_bitmap(grs_bitmap *bm )
     free(bm);
 }
 
+#if defined(MACOS)
+void gr_free_sub_bitmap(grs_bitmap *bm )
+#else
 gr_free_sub_bitmap(grs_bitmap *bm )
+#endif
 {
 	if (bm!=NULL)
     free(bm);
 }
 
+#if defined(MACOS)
+#if 0
+/NO_INVERSE_TABLE void build_colormap_asm( ubyte * palette, ubyte * cmap, int * count );
+/NO_INVERSE_TABLE #pragma aux build_colormap_asm parm [esi] [edi] [edx] modify exact [eax ebx ecx edx esi edi] = \
+/NO_INVERSE_TABLE 	"mov  ecx, 256"			\
+/NO_INVERSE_TABLE 	"xor	eax,eax"				\
+/NO_INVERSE_TABLE "again2x:"						\
+/NO_INVERSE_TABLE 	"mov	al,[esi]"			\
+/NO_INVERSE_TABLE 	"inc	esi"					\
+/NO_INVERSE_TABLE 	"shr	eax, 1"				\
+/NO_INVERSE_TABLE 	"shl	eax, 5"				\
+/NO_INVERSE_TABLE 	"mov	bl,[esi]"			\
+/NO_INVERSE_TABLE 	"inc	esi"					\
+/NO_INVERSE_TABLE 	"shr	bl, 1"				\
+/NO_INVERSE_TABLE 	"or	al, bl"				\
+/NO_INVERSE_TABLE 	"shl	eax, 5"				\
+/NO_INVERSE_TABLE 	"mov	bl,[esi]"			\
+/NO_INVERSE_TABLE 	"inc	esi"					\
+/NO_INVERSE_TABLE 	"shr	bl, 1"				\
+/NO_INVERSE_TABLE 	"or 	al, bl"				\
+/NO_INVERSE_TABLE 	"mov	al, gr_inverse_table[eax]"			\
+/NO_INVERSE_TABLE 	"mov	[edi], al"			\
+/NO_INVERSE_TABLE 	"inc	edi"					\
+/NO_INVERSE_TABLE 	"xor	eax,eax"				\
+/NO_INVERSE_TABLE 	"mov	[edx], eax"			\
+/NO_INVERSE_TABLE 	"add	edx, 4"					\
+/NO_INVERSE_TABLE 	"dec	ecx"					\
+/NO_INVERSE_TABLE 	"jne	again2x"				\
+
+void decode_data_asm(ubyte *data, int num_pixels, ubyte * colormap, int * count );
+#pragma aux decode_data_asm parm [esi] [ecx] [edi] [ebx] modify exact [esi edi eax ebx ecx] = \
+"again_ddn:"							\
+	"xor	eax,eax"				\
+	"mov	al,[esi]"			\
+	"inc	dword ptr [ebx+eax*4]"		\
+	"mov	al,[edi+eax]"		\
+	"mov	[esi],al"			\
+	"inc	esi"					\
+	"dec	ecx"					\
+	"jne	again_ddn" 
+#endif
+void decode_data_asm(ubyte *data, int num_pixels, ubyte *colormap, int *count)
+{
+	int i;
+	
+	for (i = 0; i < num_pixels; i++) {
+		count[*data]++;
+		*data = colormap[*data];
+		data++;
+	}
+}
+#else
 //NO_INVERSE_TABLE void build_colormap_asm( ubyte * palette, ubyte * cmap, int * count );
 //NO_INVERSE_TABLE #pragma aux build_colormap_asm parm [esi] [edi] [edx] modify exact [eax ebx ecx edx esi edi] = \
 //NO_INVERSE_TABLE 	"mov  ecx, 256"			\
@@ -208,6 +274,7 @@ void decode_data_asm(ubyte *data, int num_pixels, ubyte * colormap, int * count 
 	"inc	esi"					\
 	"dec	ecx"					\
 	"jne	again_ddn"
+#endif
 
 void gr_remap_bitmap( grs_bitmap * bmp, ubyte * palette, int transparent_color, int super_transparent_color )
 {
@@ -269,6 +336,8 @@ void gr_remap_bitmap_good( grs_bitmap * bmp, ubyte * palette, int transparent_co
 }
 
 
+#if defined(MACOS)
+#if 0
 int gr_bitmap_assign_selector( grs_bitmap * bmp )
 {
 	if (!dpmi_allocate_selector( bmp->bm_data, bmp->bm_w*bmp->bm_h, &bmp->bm_selector )) {
@@ -277,6 +346,17 @@ int gr_bitmap_assign_selector( grs_bitmap * bmp )
 	}
 	return 0;
 }
+#endif
+#else
+int gr_bitmap_assign_selector( grs_bitmap * bmp )
+{
+	if (!dpmi_allocate_selector( bmp->bm_data, bmp->bm_w*bmp->bm_h, &bmp->bm_selector )) {
+		bmp->bm_selector = 0;
+		return 1;
+	}
+	return 0;
+}
+#endif
 
 void gr_bitmap_check_transparency( grs_bitmap * bmp )
 {

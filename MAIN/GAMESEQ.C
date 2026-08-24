@@ -242,9 +242,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: gameseq.c 2.10 1995/12/19 15:48:25 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: gameseq.c 2.10 1995/12/19 15:48:25 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdio.h>
 #include <malloc.h>
@@ -255,6 +261,10 @@ static char rcsid[] = "$Id: gameseq.c 2.10 1995/12/19 15:48:25 john Exp $";
 #include <io.h>
 #include <errno.h>
 #include <time.h>
+#if defined(MACOS)
+#include "psrand.h"
+#else
+#endif
 
 #include "inferno.h"
 #include "game.h"
@@ -335,7 +345,13 @@ static char rcsid[] = "$Id: gameseq.c 2.10 1995/12/19 15:48:25 john Exp $";
 int	Current_level_num=0,Next_level_num;
 char	Current_level_name[LEVEL_NAME_LEN];		
 
+#if defined(MACOS)
+#ifndef SHAREWARE
 int Last_level,Last_secret_level;
+#endif
+#else
+int Last_level,Last_secret_level;
+#endif
 
 // Global variables describing the player
 int 				N_players=1;						// Number of players ( >1 means a net game, eh?)
@@ -346,6 +362,10 @@ obj_position	Player_init[MAX_PLAYERS];
 // Global variables telling what sort of game we have
 int MaxNumNetPlayers = -1;
 int NumNetPlayerPositions = -1;
+#if defined(MACOS)
+int LeaveGameFlag = 0;
+#else
+#endif
 
 // Extern from game.c to fix a bug in the cockpit!
 
@@ -354,6 +374,13 @@ extern int Last_level_path_created;
 
 void HUD_clear_messages(); // From hud.c
 
+#if defined(MACOS)
+int AdvanceLevel(int secret_flag);
+void StartLevel(int random);
+void init_cockpit();
+void copy_defaults_to_robot_all();
+#else
+#endif
 
 void verify_console_object()
 {
@@ -397,13 +424,21 @@ int count_number_of_hostages()
 void
 gameseq_init_network_players()
 {
+#if defined(MACOS)
+	int i,k;
+#else
 	int i,k,j;
+#endif
 
 	// Initialize network player start locations and object numbers
 
 	ConsoleObject = &Objects[0];
 	k = 0;
+#if defined(MACOS)
+	//j = 0;
+#else
 	j = 0;
+#endif
 	for (i=0;i<=Highest_object_index;i++) {
 
 		if (( Objects[i].type==OBJ_PLAYER )	|| (Objects[i].type == OBJ_GHOST) || (Objects[i].type == OBJ_COOP))
@@ -415,18 +450,31 @@ gameseq_init_network_players()
 				mprintf((0, "Created Cooperative multiplayer object\n"));
 				Objects[i].type=OBJ_PLAYER;
 #endif
+#if defined(MACOS)
+				//mprintf((0, "Player init %d is ship %d.\n", k, j));
+#else
 				mprintf((0, "Player init %d is ship %d.\n", k, j));
+#endif
 				Player_init[k].pos = Objects[i].pos;
 				Player_init[k].orient = Objects[i].orient;
 				Player_init[k].segnum = Objects[i].segnum;
 				Players[k].objnum = i;
 				Objects[i].id = k;
 				k++;
+#if defined(MACOS)
+#ifndef SHAREWARE
+			}
+			else
+				obj_delete(i);
+			//j++;
+#endif
+#else
 #ifndef SHAREWARE
 			}
 			else
 				obj_delete(i);
 			j++;
+#endif
 #endif
 		}
 	}
@@ -474,6 +522,11 @@ void gameseq_remove_unused_players()
 		}
 	}
 }
+#if defined(MACOS)
+
+void init_player_stats_new_ship();
+#else
+#endif
 
 // Setup player for new game
 void init_player_stats_game()
@@ -582,7 +635,13 @@ void init_player_stats_new_ship()
 	int	i;
 
 	if (Newdemo_state == ND_STATE_RECORDING) {
+#if defined(MACOS)
+		#ifndef SHAREWARE
 		newdemo_record_laser_level(Players[Player_num].laser_level, 0);
+		#endif
+#else
+		newdemo_record_laser_level(Players[Player_num].laser_level, 0);
+#endif
 		newdemo_record_player_weapon(0, 0);
 		newdemo_record_player_weapon(1, 0);
 	}
@@ -655,7 +714,11 @@ void reset_player_object();
 
 
 static fix time_out_value;
+#if defined(MACOS)
+//#pragma off (unreferenced)
+#else
 #pragma off (unreferenced)
+#endif
 void DoEndLevelScoreGlitzPoll( int nitems, newmenu_item * menus, int * key, int citem )
 {
 
@@ -663,7 +726,11 @@ void DoEndLevelScoreGlitzPoll( int nitems, newmenu_item * menus, int * key, int 
 		*key = -2;
 	}
 }
+#if defined(MACOS)
+//#pragma on (unreferenced)
+#else
 #pragma on (unreferenced)
+#endif
 
 //do whatever needs to be done when a player dies in multiplayer
 
@@ -677,11 +744,19 @@ void DoGameOver()
 
 	Function_mode = FMODE_MENU;
 	Game_mode = GM_GAME_OVER;
+#if defined(MACOS)
+	DoLeaveGame();		// Exit out of game loop
+#else
 	longjmp( LeaveGame, 0 );		// Exit out of game loop
+#endif
 
 }
 
+#if defined(MACOS)
+extern void do_save_game_menu();
+#else
 extern do_save_game_menu();
+#endif
 
 //update various information about the player
 void update_player_stats()
@@ -720,13 +795,21 @@ void update_player_stats()
 }
 
 //go through this level and start any eclip sounds
+#if defined(MACOS)
+void set_sound_sources()
+#else
 set_sound_sources()
+#endif
 {
 	int segnum,sidenum;
 	segment *seg;
 
 	digi_init_sounds();		//clear old sounds
 
+#if defined(MACOS)
+	mprintf((0, "set_sound_sources init\n"));
+#else
+#endif
 	for (seg=&Segments[0],segnum=0;segnum<=Highest_segment_index;seg++,segnum++)
 		for (sidenum=0;sidenum<MAX_SIDES_PER_SEGMENT;sidenum++) {
 			int tm,ec,sn;
@@ -739,9 +822,17 @@ set_sound_sources()
 						compute_center_point_on_side(&pnt,seg,sidenum);
 						digi_link_sound_to_pos(sn,segnum,sidenum,&pnt,1, F1_0/2);
 
+#if defined(MACOS)
+						mprintf((0, "set_sound_sources linked\n"));
+#else
+#endif
 					}
 		}
 
+#if defined(MACOS)
+	mprintf((0, "set_sound_sources done\n"));
+#else
+#endif
 }
 
 
@@ -839,7 +930,11 @@ try_again:
 }
 
 //Inputs the player's name, without putting up the background screen
+#if defined(MACOS)
+int RegisterPlayer()
+#else
 RegisterPlayer()
+#endif
 {
 	int i,j;
 	char filename[14];
@@ -971,7 +1066,11 @@ void LoadLevel(int level_num)
 }
 
 //sets up Player_num & ConsoleObject  
+#if defined(MACOS)
+void InitPlayerObject()
+#else
 InitPlayerObject()
+#endif
 {
 	Assert(Player_num>=0 && Player_num<MAX_PLAYERS);
 
@@ -993,7 +1092,11 @@ InitPlayerObject()
 extern void game_disable_cheats();
 
 //starts a new game on the given level
+#if defined(MACOS)
+void StartNewGame(int start_level)
+#else
 StartNewGame(int start_level)
+#endif
 {
 	Game_mode = GM_NORMAL;
 	Function_mode = FMODE_GAME;
@@ -1017,7 +1120,11 @@ StartNewGame(int start_level)
 }
 
 //starts a resumed game loaded from disk
+#if defined(MACOS)
+void ResumeSavedGame(int start_level)
+#else
 ResumeSavedGame(int start_level)
+#endif
 {
 	Game_mode = GM_NORMAL;
 	Function_mode = FMODE_GAME;
@@ -1133,7 +1240,11 @@ void DoEndLevelScoreGlitz(int network)
 }
 
 //give the player the opportunity to save his game
+#if defined(MACOS)
+void DoEndlevelMenu()
+#else
 DoEndlevelMenu()
+#endif
 {
 #ifdef SHAREWARE
 	if (!Cheats_enabled)
@@ -1144,7 +1255,11 @@ DoEndlevelMenu()
 }
 
 //called when the player has finished a level
+#if defined(MACOS)
+void PlayerFinishedLevel(int secret_flag)
+#else
 PlayerFinishedLevel(int secret_flag)
+#endif
 {
 	int	rval;
 	int 	was_multi = 0;
@@ -1163,11 +1278,19 @@ PlayerFinishedLevel(int secret_flag)
 
 // -- mk mk mk -- used to be here -- mk mk mk --
 
+#if defined(MACOS)
+	if (Game_mode & GM_NETWORK) {
+#else
 	if (Game_mode & GM_NETWORK)
+#endif
 		if (secret_flag)
 			Players[Player_num].connected = 4; // Finished and went to secret level
 		else
 			Players[Player_num].connected = 2; // Finished but did not die
+#if defined(MACOS)
+	}
+#else
+#endif
 
 	last_drawn_cockpit = -1;
 
@@ -1198,10 +1321,18 @@ PlayerFinishedLevel(int secret_flag)
 	if (!was_multi && rval) {
 		if (Current_mission_num == 0)
 			scores_maybe_add_player(0);
+#if defined(MACOS)
+		DoLeaveGame();		// Exit out of game loop
+#else
 		longjmp( LeaveGame, 0 );		// Exit out of game loop
+#endif
 	}
 	else if (rval)
+#if defined(MACOS)
+		DoLeaveGame();
+#else
 		longjmp( LeaveGame, 0 );
+#endif
 }
 
 
@@ -1215,9 +1346,12 @@ int Secret_level_table[MAX_SECRET_LEVELS_PER_MISSION];
 //	Return true if game over.
 int AdvanceLevel(int secret_flag)
 {
+#if defined(MACOS)
+#else
 
 	int result;
 
+#endif
 	Fuelcen_control_center_destroyed = 0;
 
 	#ifdef EDITOR
@@ -1225,6 +1359,16 @@ int AdvanceLevel(int secret_flag)
 		return 0;		//not a real level
 	#endif
 
+#if defined(MACOS)
+	#ifdef NETWORK
+	if (Game_mode & GM_MULTI)
+	{
+		int result = multi_endlevel(&secret_flag); // Wait for other players to reach this point
+		if (result) // failed to sync
+			return (Current_level_num == Last_level);
+	}
+	#endif
+#else
 	#ifdef NETWORK
 	if (Game_mode & GM_MULTI)
 	{
@@ -1233,6 +1377,7 @@ int AdvanceLevel(int secret_flag)
 			return (Current_level_num == Last_level);
 	}
 	#endif
+#endif
 
 	if (Current_level_num == Last_level) {		//player has finished the game!
 		
@@ -1302,7 +1447,11 @@ died_in_mine_message(void)
 }
 
 //called when the player has died
+#if defined(MACOS)
+void DoPlayerDead()
+#else
 DoPlayerDead()
+#endif
 {
 	reset_palette_add();
 
@@ -1384,7 +1533,11 @@ DoPlayerDead()
 		if (rval) {
 			if (Current_mission_num == 0)
 				scores_maybe_add_player(0);
+#if defined(MACOS)
+			DoLeaveGame();		// Exit out of game loop
+#else
 			longjmp( LeaveGame, 0 );		// Exit out of game loop
+#endif
 		}
 	} else {
 		init_player_stats_new_ship();
@@ -1394,7 +1547,11 @@ DoPlayerDead()
 }
 
 //called when the player is starting a new level for normal game mode and restore state
+#if defined(MACOS)
+void StartNewLevelSub(int level_num, int page_in_textures)
+#else
 StartNewLevelSub(int level_num, int page_in_textures)
+#endif
 {
 	if (!(Game_mode & GM_MULTI)) {
 		last_drawn_cockpit = -1;
@@ -1513,9 +1670,20 @@ StartNewLevelSub(int level_num, int page_in_textures)
 }
 
 //called when the player is starting a new level for normal game model
+#if defined(MACOS)
+void StartNewLevel(int level_num)
+#else
 StartNewLevel(int level_num)
+#endif
 {
 	if (!(Game_mode & GM_MULTI)) {
+#if defined(MACOS)
+		#if defined(MACOS)
+		/* The level smoke test exercises post-briefing initialization directly. */
+		if (!FindArg("-macos-level-smoke"))
+		#endif
+#else
+#endif
 		do_briefing_screens(level_num);
 	}
 	StartNewLevelSub(level_num, 1 );		
@@ -1523,12 +1691,60 @@ StartNewLevel(int level_num)
 }
 
 //initialize the player object position & orientation (at start of game, or new ship)
+#if defined(MACOS)
+void InitPlayerPosition(int random)
+#else
 InitPlayerPosition(int random)
+#endif
 {
 	int NewPlayer;
 
 	if (! ((Game_mode & GM_MULTI) && !(Game_mode&GM_MULTI_COOP)) ) // If not deathmatch
 		NewPlayer = Player_num;
+#if defined(MACOS)
+#ifdef NETWORK
+	else if (random == 1)
+	{
+		int i, closest = -1, trys=0;
+		fix closest_dist = 0x7ffffff, dist;
+
+		pssrand(clock());
+
+#ifndef NDEBUG
+		if (NumNetPlayerPositions != MAX_NUM_NET_PLAYERS)
+		{
+			mprintf((1, "WARNING: There are only %d start positions!\n"));
+			//Int3();
+		}
+#endif
+
+		do {
+			if (trys > 0)	
+			{
+				mprintf((0, "Can't start in location %d because its too close to player %d\n", NewPlayer, closest ));
+			}
+			trys++;
+			NewPlayer = psrand() % NumNetPlayerPositions;
+
+			closest = -1;
+			closest_dist = 0x7fffffff;
+	
+			for (i=0; i<N_players; i++ )	{
+				if ( (i!=Player_num) && (Objects[Players[i].objnum].type == OBJ_PLAYER) )	{
+					dist = find_connected_distance(&Objects[Players[i].objnum].pos, Objects[Players[i].objnum].segnum, &Player_init[NewPlayer].pos, Player_init[NewPlayer].segnum, 5, WID_FLY_FLAG );
+//					mprintf((0, "Distance from start location %d to player %d is %f.\n", NewPlayer, i, f2fl(dist)));
+					if ( (dist < closest_dist) && (dist >= 0) )	{
+						closest_dist = dist;
+						closest = i;
+					}
+				}
+			}
+			(void)closest;
+			mprintf((0, "Closest from pos %d is %f to plr %d.\n", NewPlayer, f2fl(closest_dist), closest));
+		} while ( (closest_dist<i2f(10*20)) && (trys<MAX_NUM_NET_PLAYERS*2) );
+	} 
+#endif
+#else
 #ifdef NETWORK
 	else if (random == 1)
 	{
@@ -1569,6 +1785,7 @@ InitPlayerPosition(int random)
 			mprintf((0, "Closest from pos %d is %f to plr %d.\n", NewPlayer, f2fl(closest_dist), closest));
 		} while ( (closest_dist<i2f(10*20)) && (trys<MAX_NUM_NET_PLAYERS*2) );
 	} 
+#endif
 #endif
 	else {
 		mprintf((0, "Starting position is not being changed.\n"));
@@ -1627,7 +1844,11 @@ extern void vr_reset_display();
 
 //	-----------------------------------------------------------------------------------------------------
 //called when the player is starting a level (new game or new ship)
+#if defined(MACOS)
+void StartLevel(int random)
+#else
 StartLevel(int random)
+#endif
 {
 	Assert(!Player_is_dead);
 
@@ -1673,6 +1894,4 @@ StartLevel(int random)
 	if (VR_screen_mode == SCREEN_MENU)
 		vr_reset_display();
 }
-
-
 

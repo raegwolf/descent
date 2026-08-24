@@ -29,9 +29,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: scanline.c 1.3 1996/01/24 16:38:16 champaign Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: scanline.c 1.2 1995/02/20 18:23:39 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <math.h>
 #include <limits.h>
@@ -47,14 +53,33 @@ static char rcsid[] = "$Id: scanline.c 1.2 1995/02/20 18:23:39 john Exp $";
 #include "texmapl.h"
 #include "scanline.h"
 
+#if defined(MACOS)
+extern ubyte * dest_row_data;
+extern int loop_count;
+
+#if defined(MACOS)
+/* Used by the macOS model smoke test to prove this renderer was exercised. */
+unsigned macos_tmap_scanline_count;
+#endif
+
+#else
+#endif
 void c_tmap_scanline_flat()
 {
 	ubyte *dest;
 	int x;
 
+#if defined(MACOS)
+	dest = dest_row_data;
+#else
 	dest = (ubyte *)(write_buffer + fx_xleft + (bytes_per_row * fx_y )  );
+#endif
 
+#if defined(MACOS)
+	for (x=loop_count; x >= 0; x-- ) {
+#else
 	for (x= fx_xright-fx_xleft+1 ; x > 0; --x ) {
+#endif
 		*dest++ = tmap_flat_color;
 	}
 }
@@ -65,11 +90,21 @@ void c_tmap_scanline_shaded()
 	ubyte *dest;
 	int x;
 
+#if defined(MACOS)
+	dest = dest_row_data;
+#else
 	dest = (ubyte *)(write_buffer + fx_xleft + (bytes_per_row * fx_y)  );
+#endif
 
 	fade = tmap_flat_shade_value<<8;
+#if defined(MACOS)
+	for (x=loop_count; x >= 0; x-- ) {
+		ubyte c = gr_fade_table[ fade |(*dest)];
+		*dest++ = c;
+#else
 	for (x= fx_xright-fx_xleft+1 ; x > 0; --x ) {
 		*dest++ = gr_fade_table[ fade |(*dest)];
+#endif
 	}
 }
 
@@ -85,16 +120,28 @@ void c_tmap_scanline_lin_nolight()
 	dudx = fx_du_dx; 
 	dvdx = fx_dv_dx*64; 
 
+#if defined(MACOS)
+	dest = dest_row_data;
+#else
 	dest = (ubyte *)(write_buffer + fx_xleft + (bytes_per_row * fx_y)  );
+#endif
 
 	if (!Transparency_on)	{
+#if defined(MACOS)
+		for (x=loop_count; x >= 0; x-- ) {
+#else
 		for (x= fx_xright-fx_xleft+1 ; x > 0; --x ) {
+#endif
 			*dest++ = (uint)pixptr[ (f2i(v)&(64*63)) + (f2i(u)&63) ];
 			u += dudx;
 			v += dvdx;
 		}
 	} else {
+#if defined(MACOS)
+		for (x=loop_count; x >= 0; x-- ) {
+#else
 		for (x= fx_xright-fx_xleft+1 ; x > 0; --x ) {
+#endif
 			c = (uint)pixptr[ (f2i(v)&(64*63)) + (f2i(u)&63) ];
 			if ( c!=255)
 				*dest = c;
@@ -118,19 +165,33 @@ void c_tmap_scanline_lin()
 	dudx = fx_du_dx; 
 	dvdx = fx_dv_dx*64; 
 
+#if defined(MACOS)
+	l = fx_l;
+	dldx = fx_dl_dx;
+	dest = dest_row_data;
+#else
 	l = fx_l>>8;
 	dldx = fx_dl_dx>>8;
 	dest = (ubyte *)(write_buffer + fx_xleft + (bytes_per_row * fx_y)  );
+#endif
 
 	if (!Transparency_on)	{
+#if defined(MACOS)
+		for (x=loop_count; x >= 0; x-- ) {
+#else
 		for (x= fx_xright-fx_xleft+1 ; x > 0; --x ) {
+#endif
 			*dest++ = gr_fade_table[ (l&(0xff00)) + (uint)pixptr[ (f2i(v)&(64*63)) + (f2i(u)&63) ] ];
 			l += dldx;
 			u += dudx;
 			v += dvdx;
 		}
 	} else {
+#if defined(MACOS)
+		for (x=loop_count; x >= 0; x-- ) {
+#else
 		for (x= fx_xright-fx_xleft+1 ; x > 0; --x ) {
+#endif
 			c = (uint)pixptr[ (f2i(v)&(64*63)) + (f2i(u)&63) ];
 			if ( c!=255)
 				*dest = gr_fade_table[ (l&(0xff00)) + c ];
@@ -157,17 +218,29 @@ void c_tmap_scanline_per_nolight()
 	dvdx = fx_dv_dx*64; 
 	dzdx = fx_dz_dx;
 
+#if defined(MACOS)
+	dest = dest_row_data;
+#else
 	dest = (ubyte *)(write_buffer + fx_xleft + (bytes_per_row * fx_y)  );
+#endif
 
 	if (!Transparency_on)	{
+#if defined(MACOS)
+		for (x=loop_count; x >= 0; x-- ) {
+#else
 		for (x= fx_xright-fx_xleft+1 ; x > 0; --x ) {
+#endif
 			*dest++ = (uint)pixptr[ ( (v/z)&(64*63) ) + ((u/z)&63) ];
 			u += dudx;
 			v += dvdx;
 			z += dzdx;
 		}
 	} else {
+#if defined(MACOS)
+		for (x=loop_count; x >= 0; x-- ) {
+#else
 		for (x= fx_xright-fx_xleft+1 ; x > 0; --x ) {
+#endif
 			c = (uint)pixptr[ ( (v/z)&(64*63) ) + ((u/z)&63) ];
 			if ( c!=255)
 				*dest = c;
@@ -186,6 +259,13 @@ void c_tmap_scanline_per()
 	int x;
 	fix u,v,z,l,dudx, dvdx, dzdx, dldx;
 
+#if defined(MACOS)
+#if defined(MACOS)
+	macos_tmap_scanline_count++;
+#endif
+
+#else
+#endif
 	u = fx_u;
 	v = fx_v*64;
 	z = fx_z;
@@ -193,12 +273,22 @@ void c_tmap_scanline_per()
 	dvdx = fx_dv_dx*64; 
 	dzdx = fx_dz_dx;
 
+#if defined(MACOS)
+	l = fx_l;
+	dldx = fx_dl_dx;
+	dest = dest_row_data;
+#else
 	l = fx_l>>8;
 	dldx = fx_dl_dx>>8;
 	dest = (ubyte *)(write_buffer + fx_xleft + (bytes_per_row * fx_y)  );
+#endif
 
 	if (!Transparency_on)	{
+#if defined(MACOS)
+		for (x=loop_count; x >= 0; x-- ) {
+#else
 		for (x= fx_xright-fx_xleft+1 ; x > 0; --x ) {
+#endif
 			*dest++ = gr_fade_table[ (l&(0xff00)) + (uint)pixptr[ ( (v/z)&(64*63) ) + ((u/z)&63) ] ];
 			l += dldx;
 			u += dudx;
@@ -206,7 +296,11 @@ void c_tmap_scanline_per()
 			z += dzdx;
 		}
 	} else {
+#if defined(MACOS)
+		for (x=loop_count; x >= 0; x-- ) {
+#else
 		for (x= fx_xright-fx_xleft+1 ; x > 0; --x ) {
+#endif
 			c = (uint)pixptr[ ( (v/z)&(64*63) ) + ((u/z)&63) ];
 			if ( c!=255)
 				*dest = gr_fade_table[ (l&(0xff00)) + c ];
@@ -218,6 +312,46 @@ void c_tmap_scanline_per()
 		}
 	}
 }
+#if defined(MACOS)
 
+#define zonk 1
 
+void c_tmap_scanline_editor()
+{
+	ubyte *dest;
+	uint c;
+	int x;
+	fix u,v,z,dudx, dvdx, dzdx;
+
+	u = fx_u;
+	v = fx_v*64;
+	z = fx_z;
+	dudx = fx_du_dx; 
+	dvdx = fx_dv_dx*64; 
+	dzdx = fx_dz_dx;
+
+	dest = dest_row_data;
+
+	if (!Transparency_on)	{
+		for (x=loop_count; x >= 0; x-- ) {
+			*dest++ = zonk;
+			//(uint)pixptr[ ( (v/z)&(64*63) ) + ((u/z)&63) ];
+			u += dudx;
+			v += dvdx;
+			z += dzdx;
+		}
+	} else {
+		for (x=loop_count; x >= 0; x-- ) {
+			c = (uint)pixptr[ ( (v/z)&(64*63) ) + ((u/z)&63) ];
+			if ( c!=255)
+				*dest = zonk;
+			dest++;
+			u += dudx;
+			v += dvdx;
+			z += dzdx;
+		}
+	}
+}
+#else
+#endif
 

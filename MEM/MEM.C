@@ -99,6 +99,7 @@ static char rcsid[] = "$Id: mem.c 1.18 1995/01/24 20:49:18 matt Exp $";
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <string.h>
 #include <dos.h>
 #include <malloc.h>
@@ -441,7 +442,19 @@ void * mem_malloc( unsigned int size, char * var, char * filename, int line, int
 		Int3();
 	}
 
+	#if defined(MACOS)
+	{
+		uint32_t *allocation = (uint32_t *)malloc(sizeof(uint32_t) + size + CHECKSIZE);
+		if (allocation != NULL) {
+			*allocation = size;
+			ptr = allocation + 1;
+		} else {
+			ptr = NULL;
+		}
+	}
+	#else
 	ptr = malloc( size + CHECKSIZE );
+	#endif
 
 	if (ptr==NULL)	{
 		fprintf( stderr, "\nMEM_OUT_OF_MEMORY: Malloc returned NULL\n" );
@@ -450,14 +463,17 @@ void * mem_malloc( unsigned int size, char * var, char * filename, int line, int
 		Int3();
 	}
 
+	#if defined(MACOS)
+	BytesMalloced += size;
+	#else
 	base = (unsigned int)ptr;
 	if ( base < SmallestAddress ) SmallestAddress = base;
 	if ( (base+size) > LargestAddress ) LargestAddress = base+size;
 
-
 	psize = (int *)ptr;
 	psize--;
 	BytesMalloced += *psize;
+	#endif
 
 	if (fill_zero)
 		memset( ptr, 0, size );
@@ -468,8 +484,7 @@ void * mem_malloc( unsigned int size, char * var, char * filename, int line, int
 void mem_free( void * buffer )
 {
 	int ErrorCount;
-	int * psize = (int *)buffer;
-	psize--;
+	int * psize;
 
 	if (Initialized==0)
 		mem_init();
@@ -480,6 +495,8 @@ void mem_free( void * buffer )
 		Int3();
 		return;
 	}
+	psize = (int *)buffer;
+	psize--;
 
 	ErrorCount = 0;
 
@@ -491,7 +508,11 @@ void mem_free( void * buffer )
 
 	BytesMalloced -= *psize;
 
-	free( buffer );
+	#if defined(MACOS)
+	free(psize);
+	#else
+	free(buffer);
+	#endif
 }
 
 void mem_display_blocks()

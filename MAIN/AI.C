@@ -241,12 +241,22 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  * 
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: ai.c 2.11 1995/07/09 11:15:48 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: ai.c 2.11 1995/07/09 11:15:48 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
+#if defined(MACOS)
+#include "psrand.h"
+#else
+#endif
 
 #include "inferno.h"
 #include "game.h"
@@ -291,6 +301,14 @@ static char rcsid[] = "$Id: ai.c 2.11 1995/07/09 11:15:48 john Exp $";
 #ifndef NDEBUG
 #include "string.h"
 #include <time.h>
+#endif
+#if defined(MACOS)
+
+static inline int max(int a, int b) { return a > b ? a : b; }
+static inline int min(int a, int b) { return a < b ? a : b; }
+void init_boss_segments(short segptr[], int *num_segs, int size_check);
+
+#else
 #endif
 
 #define	JOHN_CHEATS_SIZE_1	6
@@ -842,7 +860,11 @@ void ai_turn_towards_vector(vms_vector *goal_vector, object *objp, fix rate)
 	}
 
 //	//	Every 8th time, do a correct matrix create, 7/8 time, do a quick one.
+#if defined(MACOS)
+//	if (psrand() < 0x1000)
+#else
 //	if (rand() < 0x1000)
+#endif
 		vm_vector_2_matrix(&objp->orient, &new_fvec, NULL, &objp->orient.rvec);
 //	else
 //		vm_vector_2_matrix_norm(&objp->orient, &new_fvec, NULL, &objp->orient.rvec);
@@ -878,11 +900,19 @@ void ai_turn_randomly(vms_vector *vec_to_player, object *obj, fix rate, int prev
 
 	//	Random turning looks too stupid, so 1/4 of time, cheat.
 	if (previous_visibility)
+#if defined(MACOS)
+		if (psrand() > 0x7400) {
+#else
 		if (rand() > 0x7400) {
+#endif
 			ai_turn_towards_vector(vec_to_player, obj, rate);
 			return;
 		}
+#if defined(MACOS)
+//--debug-- 	if (psrand() > 0x6000)
+#else
 //--debug-- 	if (rand() > 0x6000)
+#endif
 //--debug-- 		Prevented_turns++;
 
 	curvec = obj->mtype.phys_info.rotvel;
@@ -1185,10 +1215,18 @@ void ai_frame_animation(object *objp)
 		vms_angvec	*goalangp = &Ai_local_info[objnum].goal_angles[joint];
 		vms_angvec	*deltaangp = &Ai_local_info[objnum].delta_angles[joint];
 
+#if defined(MACOS)
+#ifndef NDEBUG
+if (Ai_animation_test) {
+	printf("%i: [%7.3f %7.3f %7.3f]  [%7.3f %7.3f %7.3f]\n", joint, f2fl(curangp->p), f2fl(curangp->b), f2fl(curangp->h), f2fl(goalangp->p), f2fl(goalangp->b), f2fl(goalangp->h));
+}
+#endif
+#else
 #ifndef NDEBUG
 if (Ai_animation_test) {
 	printf("%i: [%7.3f %7.3f %7.3f]  [%7.3f %7.3f %7.3f]\n", joint, f2fl(curangp->p), f2fl(curangp->b), f2fl(curangp->h), f2fl(goalangp->p), f2fl(goalangp->b), f2fl(goalangp->h), f2fl(curangp->p), f2fl(curangp->b), f2fl(curangp->h));
 }
+#endif
 #endif
 		delta_to_goal = goalangp->p - curangp->p;
 		if (delta_to_goal > 32767)
@@ -1311,7 +1349,11 @@ void ai_fire_laser_at_player(object *obj, vms_vector *fire_point)
 		fix	cloak_time = Ai_cloak_info[objnum % MAX_AI_CLOAK_INFO].last_time;
 
 		if (GameTime - cloak_time > CLOAK_TIME_MAX/4)
+#if defined(MACOS)
+			if (psrand() > fixdiv(GameTime - cloak_time, CLOAK_TIME_MAX)/2) {
+#else
 			if (rand() > fixdiv(GameTime - cloak_time, CLOAK_TIME_MAX)/2) {
+#endif
 				set_next_fire_time(ailp, robptr);
 				return;
 			}
@@ -1337,12 +1379,22 @@ void ai_fire_laser_at_player(object *obj, vms_vector *fire_point)
 //--		return;
 
 	//	Set position to fire at based on difficulty level.
+#if defined(MACOS)
+	bpp_diff.x = Believed_player_pos.x + (psrand()-16384) * (NDL-Difficulty_level-1) * 4;
+	bpp_diff.y = Believed_player_pos.y + (psrand()-16384) * (NDL-Difficulty_level-1) * 4;
+	bpp_diff.z = Believed_player_pos.z + (psrand()-16384) * (NDL-Difficulty_level-1) * 4;
+#else
 	bpp_diff.x = Believed_player_pos.x + (rand()-16384) * (NDL-Difficulty_level-1) * 4;
 	bpp_diff.y = Believed_player_pos.y + (rand()-16384) * (NDL-Difficulty_level-1) * 4;
 	bpp_diff.z = Believed_player_pos.z + (rand()-16384) * (NDL-Difficulty_level-1) * 4;
+#endif
 
 	//	Half the time fire at the player, half the time lead the player.
+#if defined(MACOS)
+	if (psrand() > 16384) {
+#else
 	if (rand() > 16384) {
+#endif
 
 		vm_vec_normalized_dir_quick(&fire_vec, &bpp_diff, fire_point);
 
@@ -1669,7 +1721,11 @@ void ai_move_relative_to_player(object *objp, ai_local *ailp, fix dist_to_player
 	if (robptr->attack_type == 1) {
 		if (((ailp->next_fire > robptr->firing_wait[Difficulty_level]/4) && (dist_to_player < F1_0*30)) || Player_is_dead) {
 			//	1/4 of time, move around player, 3/4 of time, move away from player
+#if defined(MACOS)
+			if (psrand() < 8192) {
+#else
 			if (rand() < 8192) {
+#endif
 				move_around_player(objp, vec_to_player, -1);
 			} else {
 				move_away_from_player(objp, vec_to_player, 1);
@@ -1692,9 +1748,15 @@ void ai_move_relative_to_player(object *objp, ai_local *ailp, fix dist_to_player
 //	Compute a somewhat random, normalized vector.
 void make_random_vector(vms_vector *vec)
 {
+#if defined(MACOS)
+	vec->x = (psrand() - 16384) | 1;	// make sure we don't create null vector
+	vec->y = psrand() - 16384;
+	vec->z = psrand() - 16384;
+#else
 	vec->x = (rand() - 16384) | 1;	// make sure we don't create null vector
 	vec->y = rand() - 16384;
 	vec->z = rand() - 16384;
+#endif
 
 	vm_vec_normalize_quick(vec);
 }
@@ -1848,7 +1910,11 @@ void compute_vis_and_vec(object *objp, vms_vector *pos, ai_local *ailp, vms_vect
 
 			if ((ailp->next_misc_sound_time < GameTime) && (ailp->next_fire < F1_0) && (dist < F1_0*20)) {
 				mprintf((0, "ANGRY! "));
+#if defined(MACOS)
+				ailp->next_misc_sound_time = GameTime + (psrand() + F1_0) * (7 - Difficulty_level) / 1;
+#else
 				ailp->next_misc_sound_time = GameTime + (rand() + F1_0) * (7 - Difficulty_level) / 1;
+#endif
 				digi_link_sound_to_pos( robptr->see_sound, objp->segnum, 0, pos, 0 , Robot_sound_volume);
 			}
 		} else {
@@ -1877,7 +1943,11 @@ void compute_vis_and_vec(object *objp, vms_vector *pos, ai_local *ailp, vms_vect
 						// mprintf((0, "SEE! "));
 						digi_link_sound_to_pos( robptr->see_sound, objp->segnum, 0, pos, 0 , Robot_sound_volume);
 						ailp->time_player_sound_attacked = GameTime;
+#if defined(MACOS)
+						ailp->next_misc_sound_time = GameTime + F1_0 + psrand()*4;
+#else
 						ailp->next_misc_sound_time = GameTime + F1_0 + rand()*4;
+#endif
 					}
 				} else if (ailp->time_player_sound_attacked + F1_0/4 < GameTime) {
 					// mprintf((0, "ANGRY! "));
@@ -1888,7 +1958,11 @@ void compute_vis_and_vec(object *objp, vms_vector *pos, ai_local *ailp, vms_vect
 
 			if ((*player_visibility == 2) && (ailp->next_misc_sound_time < GameTime)) {
 				// mprintf((0, "ATTACK! "));
+#if defined(MACOS)
+				ailp->next_misc_sound_time = GameTime + (psrand() + F1_0) * (7 - Difficulty_level) / 2;
+#else
 				ailp->next_misc_sound_time = GameTime + (rand() + F1_0) * (7 - Difficulty_level) / 2;
+#endif
 				digi_link_sound_to_pos( robptr->attack_sound, objp->segnum, 0, pos, 0 , Robot_sound_volume);
 			}
 			ailp->previous_visibility = *player_visibility;
@@ -1915,11 +1989,19 @@ void move_object_to_legal_spot(object *objp)
 	for (i=0; i<MAX_SIDES_PER_SEGMENT; i++) {
 		if (WALL_IS_DOORWAY(segp, i) & WID_FLY_FLAG) {
 			vms_vector	segment_center, goal_dir;
+#if defined(MACOS)
+			//fix			dist_to_center;
+#else
 			fix			dist_to_center;
+#endif
 
 			compute_segment_center(&segment_center, &Segments[segp->children[i]]);
 			vm_vec_sub(&goal_dir, &segment_center, &objp->pos);
+#if defined(MACOS)
+			//dist_to_center = vm_vec_normalize_quick(&goal_dir);
+#else
 			dist_to_center = vm_vec_normalize_quick(&goal_dir);
+#endif
 			vm_vec_scale(&goal_dir, objp->size);
 			vm_vec_add2(&objp->pos, &goal_dir);
 			if (!object_intersects_wall(objp)) {
@@ -2077,10 +2159,18 @@ int get_random_child(int segnum)
 	int	sidenum;
 	segment	*segp = &Segments[segnum];
 
+#if defined(MACOS)
+	sidenum = (psrand() * 6) >> 15;
+#else
 	sidenum = (rand() * 6) >> 15;
+#endif
 
 	while (!(WALL_IS_DOORWAY(segp, sidenum) & WID_FLY_FLAG))
+#if defined(MACOS)
+		sidenum = (psrand() * 6) >> 15;
+#else
 		sidenum = (rand() * 6) >> 15;
+#endif
 
 	segnum = segp->children[sidenum];
 
@@ -2108,6 +2198,109 @@ int check_object_object_intersection(vms_vector *pos, fix size, segment *segp)
 
 }
 
+#if defined(MACOS)
+#ifndef SHAREWARE
+
+// --------------------------------------------------------------------------------------------------------------------
+//	Return true if object created, else return false.
+int create_gated_robot( int segnum, int object_id)
+{
+	int		objnum;
+	object	*objp;
+	segment	*segp = &Segments[segnum];
+	vms_vector	object_pos;
+	robot_info	*robptr = &Robot_info[object_id];
+	int		i, count=0;
+	fix		objsize = Polygon_models[robptr->model_num].rad;
+	int		default_behavior;
+
+	for (i=0; i<=Highest_object_index; i++)
+		if (Objects[i].type == OBJ_ROBOT)
+			if (Objects[i].matcen_creator == BOSS_GATE_MATCEN_NUM)
+				count++;
+
+	if (count > 2*Difficulty_level + 3) {
+		// mprintf((0, "Cannot gate in a robot until you kill one.\n"));
+		Last_gate_time = GameTime - 3*Gate_interval/4;
+		return 0;
+	}
+
+	compute_segment_center(&object_pos, segp);
+	pick_random_point_in_seg(&object_pos, segp-Segments);
+
+	//	See if legal to place object here.  If not, move about in segment and try again.
+	if (check_object_object_intersection(&object_pos, objsize, segp)) {
+		// mprintf((0, "Can't get in because object collides with something.\n"));
+		Last_gate_time = GameTime - 3*Gate_interval/4;
+		return 0;
+	}
+
+	objnum = obj_create(OBJ_ROBOT, object_id, segnum, &object_pos, &vmd_identity_matrix, objsize, CT_AI, MT_PHYSICS, RT_POLYOBJ);
+
+	if ( objnum < 0 ) {
+		// mprintf((1, "Can't get object to gate in robot.  Not gating in.\n"));
+		Last_gate_time = GameTime - 3*Gate_interval/4;
+		return 0;
+	}
+
+	mprintf((0, "Gating in object %i in segment %i\n", objnum, segp-Segments));
+
+	#ifdef NETWORK
+	Net_create_objnums[0] = objnum; // A convenient global to get objnum back to caller for multiplayer
+	#endif
+
+	objp = &Objects[objnum];
+
+	//Set polygon-object-specific data
+
+	objp->rtype.pobj_info.model_num = robptr->model_num;
+	objp->rtype.pobj_info.subobj_flags = 0;
+
+	//set Physics info
+
+	objp->mtype.phys_info.mass = robptr->mass;
+	objp->mtype.phys_info.drag = robptr->drag;
+
+	objp->mtype.phys_info.flags |= (PF_LEVELLING);
+
+	objp->shields = robptr->strength;
+	objp->matcen_creator = BOSS_GATE_MATCEN_NUM;	//	flag this robot as having been created by the boss.
+
+	default_behavior = AIB_NORMAL;
+	if (object_id == 10)						//	This is a toaster guy!
+		default_behavior = AIB_RUN_FROM;
+
+	init_ai_object(objp-Objects, default_behavior, -1 );		//	Note, -1 = segment this robot goes to to hide, should probably be something useful
+
+	object_create_explosion(segnum, &object_pos, i2f(10), VCLIP_MORPHING_ROBOT );
+	digi_link_sound_to_pos( Vclip[VCLIP_MORPHING_ROBOT].sound_num, segnum, 0, &object_pos, 0 , F1_0);
+	morph_start(objp);
+
+	Last_gate_time = GameTime;
+
+	Players[Player_num].num_robots_level++;
+	Players[Player_num].num_robots_total++;
+
+	return 1;
+}
+
+// --------------------------------------------------------------------------------------------------------------------
+//	Make object objp gate in a robot.
+//	The process of him bringing in a robot takes one second.
+//	Then a robot appears somewhere near the player.
+//	Return true if robot successfully created, else return false
+int gate_in_robot(int type, int segnum)
+{
+	if (segnum < 0)
+		segnum = Boss_gate_segs[(psrand() * Num_boss_gate_segs) >> 15];
+
+	Assert((segnum >= 0) && (segnum <= Highest_segment_index));
+
+	return create_gated_robot(segnum, type);
+}
+
+#endif
+#else
 #ifndef SHAREWARE
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -2208,6 +2401,7 @@ int gate_in_robot(int type, int segnum)
 	return create_gated_robot(segnum, type);
 }
 
+#endif
 #endif
 
 //// --------------------------------------------------------------------------------------------------------------------
@@ -2363,7 +2557,11 @@ void teleport_boss(object *objp)
 	Assert(Num_boss_teleport_segs > 0);
 
 	//	Pick a random segment from the list of boss-teleportable-to segments.
+#if defined(MACOS)
+	rand_seg = (psrand() * Num_boss_teleport_segs) >> 15;	
+#else
 	rand_seg = (rand() * Num_boss_teleport_segs) >> 15;	
+#endif
 	rand_segnum = Boss_teleport_segs[rand_seg];
 	Assert((rand_segnum >= 0) && (rand_segnum <= Highest_segment_index));
 
@@ -2425,10 +2623,17 @@ void do_boss_dying_frame(object *objp)
 			mprintf((0, "Starting boss death sound!\n"));
 			Boss_dying_sound_playing = 1;
 			digi_link_sound_to_object2( SOUND_BOSS_SHARE_DIE, objp-Objects, 0, F1_0*4, F1_0*1024 );	//	F1_0*512 means play twice as loud
+#if defined(MACOS)
+		} else if (psrand() < FrameTime*16)
+			create_small_fireball_on_object(objp, (F1_0 + psrand()) * 8, 0);
+	} else if (psrand() < FrameTime*8)
+		create_small_fireball_on_object(objp, (F1_0/2 + psrand()) * 8, 1);
+#else
 		} else if (rand() < FrameTime*16)
 			create_small_fireball_on_object(objp, (F1_0 + rand()) * 8, 0);
 	} else if (rand() < FrameTime*8)
 		create_small_fireball_on_object(objp, (F1_0/2 + rand()) * 8, 1);
+#endif
 
 	if (Boss_dying_start_time + BOSS_DEATH_DURATION < GameTime) {
 		do_controlcen_destroyed_stuff(NULL);
@@ -2529,6 +2734,71 @@ void do_boss_stuff(object *objp)
 
 #define	BOSS_TO_PLAYER_GATE_DISTANCE	(F1_0*150)
 
+#if defined(MACOS)
+#ifndef SHAREWARE
+
+// --------------------------------------------------------------------------------------------------------------------
+//	Do special stuff for a boss.
+void do_super_boss_stuff(object *objp, fix dist_to_player, int player_visibility)
+{
+	static int eclip_state = 0;
+	do_boss_stuff(objp);
+
+	// Only master player can cause gating to occur.
+	#ifdef NETWORK
+	if ((Game_mode & GM_MULTI) && !network_i_am_master())
+		return; 
+	#endif
+
+	if ((dist_to_player < BOSS_TO_PLAYER_GATE_DISTANCE) || player_visibility || (Game_mode & GM_MULTI)) {
+		if (GameTime - Last_gate_time > Gate_interval/2) {
+			restart_effect(BOSS_ECLIP_NUM);
+#ifndef SHAREWARE
+#ifdef NETWORK
+			if (eclip_state == 0) {
+				multi_send_boss_actions(objp-Objects, 4, 0, 0);
+				eclip_state = 1;
+			}
+#endif
+#endif
+		}
+		else {
+			stop_effect(BOSS_ECLIP_NUM);
+#ifndef SHAREWARE
+#ifdef NETWORK
+			if (eclip_state == 1) {
+				multi_send_boss_actions(objp-Objects, 5, 0, 0);
+				eclip_state = 0;
+			}
+#endif
+#endif
+		}
+
+		if (GameTime - Last_gate_time > Gate_interval)
+			if (ai_multiplayer_awareness(objp, 99)) {
+				int	rtval;
+				int	randtype = (psrand() * MAX_GATE_INDEX) >> 15;
+
+				Assert(randtype < MAX_GATE_INDEX);
+				randtype = Super_boss_gate_list[randtype];
+				Assert(randtype < N_robot_types);
+
+				rtval = gate_in_robot(randtype, -1);
+#ifndef SHAREWARE
+#ifdef NETWORK
+				if (rtval && (Game_mode & GM_MULTI))
+				{
+					multi_send_boss_actions(objp-Objects, 3, randtype, Net_create_objnums[0]);
+					map_objnum_local_to_local(Net_create_objnums[0]);
+				}
+#endif
+#endif
+			}	
+	}
+}
+
+#endif
+#else
 #ifndef SHAREWARE
 
 // --------------------------------------------------------------------------------------------------------------------
@@ -2591,6 +2861,7 @@ void do_super_boss_stuff(object *objp, fix dist_to_player, int player_visibility
 	}
 }
 
+#endif
 #endif
 
 //int multi_can_move_robot(object *objp, int awareness_level)
@@ -2784,11 +3055,19 @@ void do_ai_frame(object *obj)
 	previous_visibility = ailp->previous_visibility;	//	Must get this before we toast the master copy!
 
 	//	Deal with cloaking for robots which are cloaked except just before firing.
+#if defined(MACOS)
+	if (robptr->cloak_type == RI_CLOAKED_EXCEPT_FIRING) {
+#else
 	if (robptr->cloak_type == RI_CLOAKED_EXCEPT_FIRING)
+#endif
 		if (ailp->next_fire < F1_0/2)
 			aip->CLOAKED = 1;
 		else
 			aip->CLOAKED = 0;
+#if defined(MACOS)
+	}
+#else
+#endif
 
 	if (!(Players[Player_num].flags & PLAYER_FLAGS_CLOAKED))
 		Believed_player_pos = ConsoleObject->pos;
@@ -2817,8 +3096,13 @@ void do_ai_frame(object *obj)
 	//	Occasionally make non-still robots make a path to the player.  Based on agitation and distance from player.
 	if ((aip->behavior != AIB_RUN_FROM) && (aip->behavior != AIB_STILL) && !(Game_mode & GM_MULTI))
 		if (Overall_agitation > 70) {
+#if defined(MACOS)
+			if ((dist_to_player < F1_0*200) && (psrand() < FrameTime/4)) {
+				if (psrand() * (Overall_agitation - 40) > F1_0*5) {
+#else
 			if ((dist_to_player < F1_0*200) && (rand() < FrameTime/4)) {
 				if (rand() * (Overall_agitation - 40) > F1_0*5) {
+#endif
 					// -- mprintf((0, "(1) Object #%i going from still to path in frame %i.\n", objnum, FrameCount));
 					create_path_to_player(obj, 4 + Overall_agitation/8 + Difficulty_level, 1);
 					// -- show_path_and_other(obj);
@@ -2934,17 +3218,29 @@ void do_ai_frame(object *obj)
 
 
 	if (Player_is_dead && (ailp->player_awareness_type == 0))
+#if defined(MACOS)
+		if ((dist_to_player < F1_0*200) && (psrand() < FrameTime/8)) {
+#else
 		if ((dist_to_player < F1_0*200) && (rand() < FrameTime/8)) {
+#endif
 			if ((aip->behavior != AIB_STILL) && (aip->behavior != AIB_RUN_FROM)) {
 				if (!ai_multiplayer_awareness(obj, 30))
 					return;
 				ai_multi_send_robot_position(objnum, -1);
 
+#if defined(MACOS)
+				if (!((ailp->mode == AIM_FOLLOW_PATH) && (aip->cur_path_index < aip->path_length-1))) {
+#else
 				if (!((ailp->mode == AIM_FOLLOW_PATH) && (aip->cur_path_index < aip->path_length-1)))
+#endif
 					if (dist_to_player < F1_0*30)
 						create_n_segment_path(obj, 5, 1);
 					else
 						create_path_to_player(obj, 20, 1);
+#if defined(MACOS)
+				}
+#else
+#endif
 			}
 		}
 
@@ -3123,8 +3419,13 @@ void do_ai_frame(object *obj)
 
 			if ((aip->CURRENT_STATE == AIS_REST) && (aip->GOAL_STATE == AIS_REST)) {
 				if (player_visibility) {
+#if defined(MACOS)
+					if (psrand() < FrameTime*player_visibility) {
+						if (dist_to_player/256 < psrand()*player_visibility) {
+#else
 					if (rand() < FrameTime*player_visibility) {
 						if (dist_to_player/256 < rand()*player_visibility) {
+#endif
 							// mprintf((0, "Object %i searching for player.\n", obj-Objects));
 							aip->GOAL_STATE = AIS_SRCH;
 							aip->CURRENT_STATE = AIS_SRCH;
@@ -3228,11 +3529,19 @@ void do_ai_frame(object *obj)
 			break;
 
 		case AIM_FOLLOW_PATH: {
+#if defined(MACOS)
+			//int	anger_level = 65;
+#else
 			int	anger_level = 65;
+#endif
 
 			if (aip->behavior == AIB_STATION)
 				if (Point_segs[aip->hide_index + aip->path_length - 1].segnum == aip->hide_segment) {
+#if defined(MACOS)
+					//anger_level = 64;
+#else
 					anger_level = 64;
+#endif
 					// mprintf((0, "Object %i, station, lowering anger to 64.\n"));
 				}
 
@@ -3301,9 +3610,17 @@ void do_ai_frame(object *obj)
 			if ((dist_to_player < F1_0*120+Difficulty_level*F1_0*20) || (ailp->player_awareness_type >= PA_WEAPON_ROBOT_COLLISION-1)) {
 				compute_vis_and_vec(obj, &vis_vec_pos, ailp, &vec_to_player, &player_visibility, robptr, &visibility_and_vec_computed);
 
+#if defined(MACOS)
+				//	turn towards vector if visible this time or last time, or random
+#else
 				//	turn towards vector if visible this time or last time, or rand
+#endif
 				// new!
+#if defined(MACOS)
+				if ((player_visibility) || (previous_visibility) || ((psrand() > 0x4000) && !(Game_mode & GM_MULTI))) {
+#else
 				if ((player_visibility) || (previous_visibility) || ((rand() > 0x4000) && !(Game_mode & GM_MULTI))) {
+#endif
 					if (!ai_multiplayer_awareness(obj, 71)) {
 						if (maybe_ai_do_actual_firing_stuff(obj, aip))
 							ai_do_actual_firing_stuff(obj, aip, ailp, robptr, &vec_to_player, dist_to_player, &gun_point, player_visibility, object_animates);
@@ -3571,7 +3888,11 @@ int add_awareness_event(object *objp, int type)
 	if (Num_awareness_events < MAX_AWARENESS_EVENTS) {
 		if ((type == PA_WEAPON_WALL_COLLISION) || (type == PA_WEAPON_ROBOT_COLLISION))
 			if (objp->id == VULCAN_ID)
+#if defined(MACOS)
+				if (psrand() > 3276)
+#else
 				if (rand() > 3276)
+#endif
 					return 0;		//	For vulcan cannon, only about 1/10 actually cause awareness
 
 		Awareness_events[Num_awareness_events].segnum = objp->segnum;
@@ -3591,7 +3912,11 @@ int add_awareness_event(object *objp, int type)
 void create_awareness_event(object *objp, int type)
 {
 	if (add_awareness_event(objp, type)) {
+#if defined(MACOS)
+		if (((psrand() * (type+4)) >> 15) > 4)
+#else
 		if (((rand() * (type+4)) >> 15) > 4)
+#endif
 			Overall_agitation++;
 		if (Overall_agitation > OVERALL_AGITATION_MAX)
 			Overall_agitation = OVERALL_AGITATION_MAX;
@@ -3611,11 +3936,19 @@ void pae_aux(int segnum, int type, int level)
 	// Process children.
 	if (level <= 4)
 		for (j=0; j<MAX_SIDES_PER_SEGMENT; j++)
+#if defined(MACOS)
+			if (IS_CHILD(Segments[segnum].children[j])) {
+#else
 			if (IS_CHILD(Segments[segnum].children[j]))
+#endif
 				if (type == 4)
 					pae_aux(Segments[segnum].children[j], type-1, level+1);
 				else
 					pae_aux(Segments[segnum].children[j], type, level+1);
+#if defined(MACOS)
+			}
+#else
+#endif
 }
 
 
@@ -3824,5 +4157,4 @@ int ai_restore_state( FILE * fp )
 // -- 	mprintf((0, "[pl: %i cur: st: %i]\n", ConsoleObject->segnum, objp->segnum, aip->hide_segment));
 
 // -- }
-
 

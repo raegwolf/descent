@@ -48,7 +48,7 @@ static char rcsid[] = "$Id: bmread.c 2.4 1995/03/28 18:05:29 john Exp $";
 
 #include "settings.h"
 
-#ifdef EDITOR
+#if defined(EDITOR) || (defined(MACOS) && defined(SHAREWARE))
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -94,7 +94,9 @@ static char rcsid[] = "$Id: bmread.c 2.4 1995/03/28 18:05:29 john Exp $";
 #include "args.h"
 
 
+#ifdef EDITOR
 #include "editor\texpage.h"
+#endif
 
 #define BM_NONE			-1
 #define BM_COCKPIT		 0
@@ -114,6 +116,24 @@ static char rcsid[] = "$Id: bmread.c 2.4 1995/03/28 18:05:29 john Exp $";
 #define MAX_BITMAPS_PER_BRUSH 30
 
 extern player_ship only_player_ship;		// In bm.c
+
+#if defined(MACOS)
+/* Declarations that the Watcom build obtained through permissive C rules. */
+extern grs_bitmap bogus_bitmap;
+extern ubyte bogus_bitmap_initialized;
+void bm_read_sound(void);
+void bm_read_robot_ai(void);
+void bm_read_powerup(int unused_flag);
+void bm_read_hostage_face(void);
+void bm_read_weapon(int unused_flag);
+void bm_read_hostage(void);
+void bm_read_robot(void);
+void bm_read_object(void);
+void bm_read_some_file(void);
+void bm_read_player_ship(void);
+void verify_textures(void);
+#define MAX_NUM_NET_PLAYERS 8
+#endif
 
 static short		N_ObjBitmaps=0;
 static short		N_ObjBitmapPtrs=0;
@@ -173,7 +193,11 @@ void remove_char( char * s, char c )
 int compute_average_pixel(grs_bitmap *new)
 {
 	int	row, column, color;
+	#if defined(MACOS)
+	ubyte	*pptr;
+	#else
 	char	*pptr;
+	#endif
 	int	total_red, total_green, total_blue;
 
 	pptr = new->bm_data;
@@ -262,7 +286,11 @@ void ab_load( char * filename, bitmap_index bmp[], int *nframes )
 	if (Registered_only) {
 		Assert( bogus_bitmap_initialized != 0 );
 		mprintf(( 0, "Skipping registered-only animation '%s'\n", filename ));
+		#if defined(MACOS)
+		bmp[0].index = 0;
+		#else
 		bmp[0] = &bogus_bitmap;
+		#endif
 		*nframes = 1;
 		return;
 	}
@@ -285,7 +313,11 @@ void ab_load( char * filename, bitmap_index bmp[], int *nframes )
 		return;
 	}
 
+	#if defined(MACOS)
+	iff_error = iff_read_animbrush(filename,bm,MAX_BITMAPS_PER_BRUSH,nframes,newpal);
+	#else
 	iff_error = iff_read_animbrush(filename,bm,MAX_BITMAPS_PER_BRUSH,nframes,&newpal);
+	#endif
 	if (iff_error != IFF_NO_ERROR)	{
 		mprintf((1,"File %s - IFF error: %s",filename,iff_errormsg(iff_error)));
 		Error("File %s - IFF error: %s",filename,iff_errormsg(iff_error));
@@ -318,7 +350,11 @@ int ds_load( char * filename )	{
 #ifdef SHAREWARE
 	if (Registered_only) {
 		//mprintf( 0, "Skipping registered-only sound '%s'\n", filename );
+		#if defined(MACOS)
+		return NULL;
+		#else
 		return &bogus_sound;
+		#endif
 	}
 #endif
 
@@ -486,6 +522,13 @@ int bm_init_use_tbl()
 
 		if (strlen(inputline) == LINEBUF_SIZE-1)
 			Error("Possible line truncation in BITMAPS.TBL on line %d\n",linenum);
+
+		#if defined(MACOS)
+		/* Shareware 1.4 tables use !-prefixed metadata directives that are not
+		 * bitmap filenames. */
+		if (inputline[0] == '!')
+			continue;
+		#endif
 
 		SuperX = -1;
 
@@ -671,6 +714,9 @@ void set_lighting_flag(byte *bp)
 		*bp &= (0xff ^ BM_FLAG_NO_LIGHTING);
 }
 
+#if defined(MACOS)
+void
+#endif
 set_texture_name(char *name)
 {
 	strcpy ( TmapInfo[texture_count].filename, name );
@@ -990,13 +1036,20 @@ void clear_to_end_of_line(void)
 		arg = strtok( NULL, space );
 }
 
+#if defined(MACOS)
+void
+#endif
 bm_read_sound()
 {
 	int sound_num;
 	int alt_sound_num;
 
 	sound_num = get_int();
+	#ifndef SHAREWARE
 	alt_sound_num = get_int();
+	#else
+	alt_sound_num = 0;
+	#endif
 
 	if ( sound_num>=MAX_SOUNDS )
 		Error( "Too many sound files.\n" );
@@ -1736,7 +1789,11 @@ void bm_read_weapon(int unused_flag)
 			grs_bitmap *bm;
 
 			bm = load_polymodel_bitmap(arg);
+			#if defined(MACOS)
+			if (bm && !lighted)
+			#else
 			if (! lighted)
+			#endif
 				bm->bm_flags |= BM_FLAG_NO_LIGHTING;
 
 			lighted = 1;			//default for next bitmap is lighted

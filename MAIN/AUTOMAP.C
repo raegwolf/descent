@@ -170,9 +170,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: automap.c 2.2 1995/03/21 14:41:26 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: automap.c 2.2 1995/03/21 14:41:26 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -214,7 +220,18 @@ static char rcsid[] = "$Id: automap.c 2.2 1995/03/21 14:41:26 john Exp $";
 #include "text.h"
 #include "gauges.h"
 #include "powerup.h"
+#if defined(MACOS)
+#include "network.h"
+
+#define MAP_400 1
+
+void draw_all_edges();
+void automap_build_edge_list();
+void adjust_segment_limit(int SegmentLimit);
+static inline int min(int a, int b) { return a < b ? a : b; }
+#else
 #include "network.h" 
+#endif
 
 #define EF_USED			1		// This edge is used
 #define EF_DEFINING		2		// A structure defining edge that should always draw.
@@ -275,9 +292,17 @@ static short DrawingListBright[MAX_EDGES];
 #define ROT_SPEED_DIVISOR		(115000)
 
 // Screen anvas variables
+#if defined(MACOS)
+#ifdef MAP_400
 static int current_page=0;
 static grs_canvas Pages[2];
 static grs_canvas DrawingPages[2];
+#endif
+#else
+static int current_page=0;
+static grs_canvas Pages[2];
+static grs_canvas DrawingPages[2];
+#endif
 
 // Flags
 static int Automap_cheat = 0;		// If set, show everything
@@ -339,8 +364,15 @@ void draw_automap()
 	vms_vector viewer_position;
 	g3s_point sphere_point;
 
+#if defined(MACOS)
+	#ifdef MAP_400
 	current_page ^= 1;
 	gr_set_current_canvas(&DrawingPages[current_page]);
+	#endif
+#else
+	current_page ^= 1;
+	gr_set_current_canvas(&DrawingPages[current_page]);
+#endif
 
 	gr_clear_canvas(0);
 
@@ -409,8 +441,14 @@ void draw_automap()
 
 	gr_bitmapm(5,5,&name_canv->cv_bitmap);
 
+#if defined(MACOS)
+	#ifdef MAP_400
+	gr_show_canvas( &Pages[current_page] );
+	#endif
+#else
 	gr_show_canvas( &Pages[current_page] );
 	
+#endif
 }
 
 #define LEAVE_TIME 0x4000
@@ -418,14 +456,29 @@ void draw_automap()
 //print to canvas & double height
 grs_canvas *print_to_canvas(char *s,grs_font *font, int fc, int bc)
 {
+#if defined(MACOS)
+	#ifdef MAP_400
 	int y;
 	ubyte *data;
 	int rs;
+	int multiply = 2;
+	#else
+	int multiply = 1;
+	#endif
+#else
+	int y;
+	ubyte *data;
+	int rs;
+#endif
 	grs_canvas *temp_canv,*save_canv;
 
 	save_canv = grd_curcanv;
 
+#if defined(MACOS)
+	temp_canv = gr_create_canvas(font->ft_w*strlen(s),font->ft_h * multiply);
+#else
 	temp_canv = gr_create_canvas(font->ft_w*strlen(s),font->ft_h*2);
+#endif
 
 	gr_set_current_canvas(temp_canv);
 	gr_set_curfont(font);
@@ -435,6 +488,8 @@ grs_canvas *print_to_canvas(char *s,grs_font *font, int fc, int bc)
 
 	//now double it, since we're drawing to 400-line modex screen
 
+#if defined(MACOS)
+	#ifdef MAP_400
 	data = temp_canv->cv_bitmap.bm_data;
 	rs = temp_canv->cv_bitmap.bm_rowsize;
 
@@ -442,6 +497,16 @@ grs_canvas *print_to_canvas(char *s,grs_font *font, int fc, int bc)
 		memcpy(data+(rs*y*2),data+(rs*y),temp_canv->cv_bitmap.bm_w);
 		memcpy(data+(rs*(y*2+1)),data+(rs*y),temp_canv->cv_bitmap.bm_w);
 	}
+	#endif
+#else
+	data = temp_canv->cv_bitmap.bm_data;
+	rs = temp_canv->cv_bitmap.bm_rowsize;
+
+	for (y=temp_canv->cv_bitmap.bm_h/2;y--;) {
+		memcpy(data+(rs*y*2),data+(rs*y),temp_canv->cv_bitmap.bm_w);
+		memcpy(data+(rs*(y*2+1)),data+(rs*y),temp_canv->cv_bitmap.bm_w);
+	}
+#endif
 
 	gr_set_current_canvas(save_canv);
 
@@ -449,8 +514,16 @@ grs_canvas *print_to_canvas(char *s,grs_font *font, int fc, int bc)
 }
 
 //print to buffer, double heights, and blit bitmap to screen
+#if defined(MACOS)
+void modex_printf(int x,int y,char *s,int fontnum)
+#else
 modex_printf(int x,int y,char *s,int fontnum)
+#endif
 {
+#if defined(MACOS)
+	#ifndef MAP_400
+	gr_string(x, y / 2, s);
+	#else
 	grs_canvas *temp_canv;
 
 	temp_canv = print_to_canvas(s,Gamefonts[fontnum], BM_XRGB(20,20,20), -1);
@@ -458,9 +531,23 @@ modex_printf(int x,int y,char *s,int fontnum)
 	gr_bitmapm(x,y,&temp_canv->cv_bitmap);
 
 	gr_free_canvas(temp_canv);
+	#endif
+#else
+	grs_canvas *temp_canv;
+
+	temp_canv = print_to_canvas(s,Gamefonts[fontnum], BM_XRGB(20,20,20), -1);
+
+	gr_bitmapm(x,y,&temp_canv->cv_bitmap);
+
+	gr_free_canvas(temp_canv);
+#endif
 }
 
+#if defined(MACOS)
+void create_name_canv()
+#else
 create_name_canv()
+#endif
 {
 	char	name_level[128];
 
@@ -478,6 +565,10 @@ create_name_canv()
 
 void modex_print_message(int x, int y, char *str)
 {
+#if defined(MACOS)
+	#ifndef MAP_400
+	gr_string(x, y / 2, str);
+	#else
 	int	i;
 
 	for (i=0; i<2; i++ )	{
@@ -486,6 +577,17 @@ void modex_print_message(int x, int y, char *str)
 	}
 
 	gr_set_current_canvas(&DrawingPages[current_page]);
+	#endif
+#else
+	int	i;
+
+	for (i=0; i<2; i++ )	{
+		gr_set_current_canvas(&Pages[i]);
+		modex_printf(x, y, str, GFONT_MEDIUM_1);
+	}
+
+	gr_set_current_canvas(&DrawingPages[current_page]);
+#endif
 }
 
 extern void GameLoop(int, int );
@@ -497,10 +599,17 @@ void do_automap( int key_code )	{
 	vms_angvec	tangles;
 	int leave_mode=0;
 	int first_time=1;
+#if defined(MACOS)
+#else
 	int pcx_error;
+#endif
 	int i;
 	int c;
+#if defined(MACOS)
+	//char filename[] = "MAP.PCX";
+#else
 	char filename[] = "MAP.PCX";
+#endif
 	fix entry_time;
 	int pause_game=1;		// Set to 1 if everything is paused during automap...No pause during net.
 	fix t1, t2;
@@ -534,6 +643,8 @@ void do_automap( int key_code )	{
 	mprintf( (0, "Num_vertices=%d, Max_edges=%d, (MAX:%d)\n", Num_vertices, Max_edges, MAX_EDGES ));
 	mprintf( (0, "Allocated %d K for automap edge list\n", (sizeof(Edge_info)+sizeof(short))*Max_edges/1024 ));
 
+#if defined(MACOS)
+	#ifdef MAP_400
 	gr_set_mode( SM_320x400U );
 	gr_palette_clear();
 
@@ -541,28 +652,69 @@ void do_automap( int key_code )	{
 	gr_init_sub_canvas(&Pages[1],grd_curcanv,0,401,320,400);
 	gr_init_sub_canvas(&DrawingPages[0],&Pages[0],16,69,288,272);
 	gr_init_sub_canvas(&DrawingPages[1],&Pages[1],16,69,288,272);
+	#endif
+#else
+	gr_set_mode( SM_320x400U );
+	gr_palette_clear();
+
+	gr_init_sub_canvas(&Pages[0],grd_curcanv,0,0,320,400);
+	gr_init_sub_canvas(&Pages[1],grd_curcanv,0,401,320,400);
+	gr_init_sub_canvas(&DrawingPages[0],&Pages[0],16,69,288,272);
+	gr_init_sub_canvas(&DrawingPages[1],&Pages[1],16,69,288,272);
+#endif
 
 	Automap_background.bm_data = NULL;
+#if defined(MACOS)
+	#ifdef MAP_400
+	char filename[] = "MAP.PCX";
+	int pcx_error = pcx_read_bitmap(filename,&Automap_background,BM_LINEAR,NULL);
+	if ( pcx_error != PCX_ERROR_NONE )	{
+		printf("File %s - PCX error: %s",filename,pcx_errormsg(pcx_error));
+		Error("File %s - PCX error: %s",filename,pcx_errormsg(pcx_error));
+		return;
+	}
+	#endif
+#else
 	pcx_error = pcx_read_bitmap(filename,&Automap_background,BM_LINEAR,NULL);
 	if ( pcx_error != PCX_ERROR_NONE )	{
 		printf("File %s - PCX error: %s",filename,pcx_errormsg(pcx_error));
 		Error("File %s - PCX error: %s",filename,pcx_errormsg(pcx_error));
 		return;
 	}
+#endif
 
 	for (i=0; i<2; i++ )	{
+#if defined(MACOS)
+		#ifdef MAP_400
 		gr_set_current_canvas(&Pages[i]);
 		gr_bitmap( 0, 0, &Automap_background );
+		#endif
+#else
+		gr_set_current_canvas(&Pages[i]);
+		gr_bitmap( 0, 0, &Automap_background );
+#endif
 		modex_printf( 40, 22,TXT_AUTOMAP,GFONT_BIG_1);
 		modex_printf( 70,353,TXT_TURN_SHIP,GFONT_SMALL);
 		modex_printf( 70,369,TXT_SLIDE_UPDOWN,GFONT_SMALL);
+#if defined(MACOS)
+		#ifndef SHAREWARE
 		modex_printf( 70,385,TXT_VIEWING_DISTANCE,GFONT_SMALL);
+		#endif
+#else
+		modex_printf( 70,385,TXT_VIEWING_DISTANCE,GFONT_SMALL);
+#endif
 	}
 	if ( Automap_background.bm_data )
 		free( Automap_background.bm_data );
 	Automap_background.bm_data = NULL;
 
+#if defined(MACOS)
+	#ifdef MAP_400
 	gr_set_current_canvas(&DrawingPages[current_page]);
+	#endif
+#else
+	gr_set_current_canvas(&DrawingPages[current_page]);
+#endif
 
 	automap_build_edge_list();
 
@@ -586,6 +738,11 @@ void do_automap( int key_code )	{
 	SegmentLimit = Max_segments_away;
 
 	adjust_segment_limit(SegmentLimit);
+#if defined(MACOS)
+	
+	gr_sync_display(); // update controls...
+#else
+#endif
 
 	while(!done)	{
 		if ( leave_mode==0 && Controls.automap_state && (timer_get_fixed_seconds()-entry_time)>LEAVE_TIME)

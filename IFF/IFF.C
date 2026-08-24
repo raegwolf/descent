@@ -164,9 +164,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 #define MIN_COMPRESS_WIDTH	65	//don't compress if less than this wide
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: iff.c 1.43 1994/12/08 19:03:17 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: iff.c 1.43 1994/12/08 19:03:17 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -266,7 +272,23 @@ long get_sig(FFILE *f)
 	if (f->position>=f->length) return EOF;
 	s[0] = f->data[f->position++];
 
+#if defined(MACOS)
+	#if defined(MACOS)
+	/*
+	 * The DOS implementation relied on a 32-bit little-endian long. macOS
+	 * uses a 64-bit long, so dereferencing long * here reads four bytes past
+	 * the signature and makes valid FORM/PBM files fail nondeterministically.
+	 */
+	return ((long)(ubyte)s[3] << 24) |
+	       ((long)(ubyte)s[2] << 16) |
+	       ((long)(ubyte)s[1] << 8) |
+	       (long)(ubyte)s[0];
+	#else
 	return(*((long *) s));
+	#endif
+#else
+	return(*((long *) s));
+#endif
 }
 
 int put_sig(long sig,FILE *f)
@@ -299,9 +321,18 @@ int get_word(FFILE *f)
 
 }
 
+#if defined(MACOS)
+int put_byte(ubyte c,FILE *f);
+
+#else
+#endif
 int put_word(int n,FILE *f)
 {
+#if defined(MACOS)
+	ubyte c0,c1;
+#else
 	unsigned char c0,c1;
+#endif
 
 	c0 = (n & 0xff00) >> 8;
 	c1 = n & 0xff;
@@ -328,7 +359,11 @@ char get_byte(FFILE *f)
 	return f->data[f->position++];
 }
 
+#if defined(MACOS)
+int put_byte(ubyte c,FILE *f)
+#else
 int put_byte(unsigned char c,FILE *f)
+#endif
 {
 	return fputc(c,f);
 }
@@ -403,7 +438,11 @@ int parse_bmhd(FFILE *ifile,long len,iff_bitmap_header *bmheader)
 int parse_body(FFILE *ifile,long len,iff_bitmap_header *bmheader)
 {
 	unsigned char  *p=bmheader->raw_data;
+#if defined(MACOS)
+	int width =0 ,depth=0;
+#else
 	int width,depth;
+#endif
 	signed char n;
 	int nn,wid_cnt,end_cnt,plane;
 	char ignore=0;
@@ -590,7 +629,11 @@ void skip_chunk(FFILE *ifile,long len)
 {
 	//int c,i;
 	int ilen;
+#if defined(MACOS)
+	ilen = (len+1) & ~1;
+#else
 	ilen = len+1 & ~1;
+#endif
 
 //printf( "Skipping %d chunk\n", ilen );
 
@@ -738,12 +781,20 @@ int iff_parse_ilbm_pbm(FFILE *ifile,long form_type,iff_bitmap_header *bmheader,i
 int convert_ilbm_to_pbm(iff_bitmap_header *bmheader)
 {
 	int x,y,p;
+#if defined(MACOS)
+	ubyte *new_data,*destptr,*rowptr;
+#else
 	byte *new_data,*destptr,*rowptr;
+#endif
 	int bytes_per_row,byteofs;
 	ubyte checkmask,newbyte,setbit;
 
 	//MALLOC( new_data, byte, bmheader->w * bmheader->h );//hack by KRB
+#if defined(MACOS)
+	new_data = (ubyte *)malloc((bmheader->w * bmheader->h)*sizeof(ubyte));
+#else
 	new_data = (byte *)malloc((bmheader->w * bmheader->h)*sizeof(byte));
+#endif
 	if (new_data == NULL) return IFF_NO_MEM;
 
 	destptr = new_data;
@@ -844,7 +895,11 @@ int open_fake_file(char *ifilename,FFILE *ffile)
 	return ret;
 }
 
+#if defined(MACOS)
+void close_fake_file(FFILE *f)
+#else
 close_fake_file(FFILE *f)
+#endif
 {
 	if (f->data)
 		free(f->data);
@@ -853,7 +908,11 @@ close_fake_file(FFILE *f)
 }
 
 //copy an iff header structure to a grs_bitmap structure
+#if defined(MACOS)
+void copy_iff_to_grs(grs_bitmap *bm,iff_bitmap_header *bmheader)
+#else
 copy_iff_to_grs(grs_bitmap *bm,iff_bitmap_header *bmheader)
+#endif
 {
 	bm->bm_x = bm->bm_y = 0;
 	bm->bm_w = bmheader->w;
@@ -867,7 +926,11 @@ copy_iff_to_grs(grs_bitmap *bm,iff_bitmap_header *bmheader)
 
 //if bm->bm_data is set, use it (making sure w & h are correct), else
 //allocate the memory
+#if defined(MACOS)
+int iff_parse_bitmap(FFILE *ifile,grs_bitmap *bm,int bitmap_type,ubyte *palette,grs_bitmap *prev_bm)
+#else
 int iff_parse_bitmap(FFILE *ifile,grs_bitmap *bm,int bitmap_type,byte *palette,grs_bitmap *prev_bm)
+#endif
 {
 	int ret;			//return code
 	iff_bitmap_header bmheader;
@@ -932,7 +995,11 @@ done:
 }
 
 //returns error codes - see IFF.H.  see GR.H for bitmap_type
+#if defined(MACOS)
+int iff_read_bitmap(char *ifilename,grs_bitmap *bm,int bitmap_type,ubyte *palette)
+#else
 int iff_read_bitmap(char *ifilename,grs_bitmap *bm,int bitmap_type,byte *palette)
+#endif
 {
 	int ret;			//return code
 	FFILE ifile;
@@ -957,7 +1024,11 @@ done:
 
 //like iff_read_bitmap(), but reads into a bitmap that already exists,
 //without allocating memory for the bitmap. 
+#if defined(MACOS)
+int iff_read_into_bitmap(char *ifilename,grs_bitmap *bm,ubyte *palette)
+#else
 int iff_read_into_bitmap(char *ifilename,grs_bitmap *bm,byte *palette)
+#endif
 {
 	int ret;			//return code
 	FFILE ifile;
@@ -1037,7 +1108,11 @@ int write_pal(FILE *ofile,iff_bitmap_header *bitmap_header)
 int rle_span(ubyte *dest,ubyte *src,int len)
 {
 	int n,lit_cnt,rep_cnt;
+#if defined(MACOS)
+	ubyte last,*cnt_ptr = NULL,*dptr;
+#else
 	ubyte last,*cnt_ptr,*dptr;
+#endif
 
 	dptr = dest;
 
@@ -1090,7 +1165,11 @@ int rle_span(ubyte *dest,ubyte *src,int len)
 		*dptr++ = 0;
 		*dptr++=last;			//store first char
 	}
+#if defined(MACOS)
+	else if (lit_cnt > 1 && cnt_ptr)
+#else
 	else if (lit_cnt > 1)
+#endif
 		*cnt_ptr = lit_cnt-1;
 
 	return dptr-dest;
@@ -1235,7 +1314,11 @@ int write_pbm(FILE *ofile,iff_bitmap_header *bitmap_header,int compression_on)		
 
 //writes an IFF file from a grs_bitmap structure. writes palette if not null
 //returns error codes - see IFF.H.
+#if defined(MACOS)
+int iff_write_bitmap(char *ofilename,grs_bitmap *bm,ubyte *palette)
+#else
 int iff_write_bitmap(char *ofilename,grs_bitmap *bm,byte *palette)
+#endif
 {
 	FILE *ofile;
 	iff_bitmap_header bmheader;
@@ -1291,7 +1374,11 @@ int iff_read_animbrush(char *ifilename,grs_bitmap **bm_list,int max_bitmaps,int 
 {
 	int ret;			//return code
 	FFILE ifile;
+#if defined(MACOS)
+	//iff_bitmap_header bmheader;
+#else
 	iff_bitmap_header bmheader;
+#endif
 	long sig,form_len;
 	long form_type;
 
@@ -1300,7 +1387,11 @@ int iff_read_animbrush(char *ifilename,grs_bitmap **bm_list,int max_bitmaps,int 
 	ret = open_fake_file(ifilename,&ifile);		//read in entire file
 	if (ret != IFF_NO_ERROR) goto done;
 
+#if defined(MACOS)
+	//bmheader.raw_data = NULL;
+#else
 	bmheader.raw_data = NULL;
+#endif
 
 	sig=get_sig(&ifile);
 	form_len = get_long(&ifile);
@@ -1383,6 +1474,4 @@ char *iff_errormsg(int error_number)
 	return p;
 
 }
-
-
 

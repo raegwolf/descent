@@ -86,9 +86,17 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+#if 0
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: rle.c 1.19 1995/01/14 19:18:31 john Exp $";
 #pragma on (unreferenced)
+#endif
+#else
+#pragma off (unreferenced)
+static char rcsid[] = "$Id: rle.c 1.19 1995/01/14 19:18:31 john Exp $";
+#pragma on (unreferenced)
+#endif
 
 #include <stdlib.h>
 #include <malloc.h>
@@ -111,6 +119,85 @@ static char rcsid[] = "$Id: rle.c 1.19 1995/01/14 19:18:31 john Exp $";
 #define RLE_CODE 			0xE0
 #define NOT_RLE_CODE		31
 
+#if defined(MACOS)
+#if 0
+int gr_rle_decode_asm( ubyte * src, ubyte * dest );
+#pragma aux gr_rle_decode_asm parm [esi] [edi] value [edi] modify exact [eax ebx ecx edx esi edi] = \
+"  cld					"\
+"	xor	ecx, ecx		"\
+"	cld					"\
+"	jmp	NextByte		"\
+"							"\
+"Unique:					"\
+"	mov	[edi],al		"\
+"	inc	edi			"\
+"							"\
+"NextByte:				"\
+"	mov	al,[esi]		"\
+"	inc	esi			"\
+"							"\
+"	mov	ah, al		"\
+"	and	ah, 0xE0    "\
+"  cmp	ah, 0xE0		"\
+"	jne   Unique		"\
+"							"\
+"	mov	cl, al		"\
+"	and	cl, 31  		"\
+"	je		done			"\
+"							"\
+"	mov	al,[esi]		"\
+"	inc	esi			"\
+"	mov	ah, al		"\
+"	shr	ecx,1			"\
+"	rep	stosw			"\
+"	jnc	NextByte		"\
+"	mov	[edi],al		"\
+"	inc	edi			"\
+"							"\
+"	jmp	NextByte		"\
+"							"\
+"done:					";
+
+void gr_rle_decode( ubyte * src, ubyte * dest )
+{
+	gr_rle_decode_asm( src, dest );
+}
+
+void rle_stosb(char *dest, int len, int color);
+#pragma aux rle_stosb = "cld rep	stosb" parm [edi] [ecx] [eax] modify exact [edi ecx];
+#else
+void gr_rle_decode( ubyte * src, ubyte * dest )
+{
+	int i;
+	ubyte data, count = 0;
+
+	while(1)	{
+		data = *src++;
+		if ( (data & RLE_CODE) != RLE_CODE ) {
+			*dest++ = data;
+		} else {
+			count = data & NOT_RLE_CODE;
+			if (count==0) return;
+			data = *src++;
+			for (i=0; i<count; i++ )
+				*dest++ = data;
+		}
+	}
+//	gr_rle_decode_asm(src, dest);
+}
+#define gr_rle_decode_asm gr_rle_decode
+
+#define rle_stosb(dest, len, color) memset(dest, color, len);
+#if 0
+void rle_stosb(ubyte *dest, int len, int color)
+{
+	int i;
+	for (i=0; i<len; i++ )
+		*dest++ = color;
+}
+#endif
+#endif
+#else
 int gr_rle_decode_asm( ubyte * src, ubyte * dest );
 #pragma aux gr_rle_decode_asm parm [esi] [edi] value [edi] modify exact [eax ebx ecx edx esi edi] = \
 "  cld					"\
@@ -155,6 +242,7 @@ void gr_rle_decode( ubyte * src, ubyte * dest )
 
 void rle_stosb(char *dest, int len, int color);
 #pragma aux rle_stosb = "cld rep	stosb" parm [edi] [ecx] [eax] modify exact [edi ecx];
+#endif
 
 // Given pointer to start of one scanline of rle data, uncompress it to
 // dest, from source pixels x1 to x2.
@@ -162,7 +250,11 @@ void gr_rle_expand_scanline_masked( ubyte *dest, ubyte *src, int x1, int x2  )
 {
 	int i = 0;
 	ubyte count;
+#if defined(MACOS)
+	ubyte color = 0;
+#else
 	ubyte color;
+#endif
 
 	if ( x2 < x1 ) return;
 
@@ -222,7 +314,11 @@ void gr_rle_expand_scanline( ubyte *dest, ubyte *src, int x1, int x2  )
 {
 	int i = 0;
 	ubyte count;
+#if defined(MACOS)
+	ubyte color = 0;
+#else
 	ubyte color;
+#endif
 
 	if ( x2 < x1 ) return;
 
@@ -451,7 +547,11 @@ void rle_cache_flush()
 	}	
 }
 
+#if defined(MACOS)
+void rle_expand_texture_sub( grs_bitmap * bmp, grs_bitmap * rle_temp_bitmap_1 );
+#else
 
+#endif
 
 grs_bitmap * rle_expand_texture( grs_bitmap * bmp )
 {
@@ -504,7 +604,11 @@ void rle_expand_texture_sub( grs_bitmap * bmp, grs_bitmap * rle_temp_bitmap_1 )
 	unsigned char * dbits;
 	unsigned char * sbits;
 	int i;
+#if defined(MACOS)
+	//unsigned char * dbits1;
+#else
 	unsigned char * dbits1;
+#endif
 
 	sbits = &bmp->bm_data[4 + 64];
 	dbits = rle_temp_bitmap_1->bm_data;
@@ -512,10 +616,19 @@ void rle_expand_texture_sub( grs_bitmap * bmp, grs_bitmap * rle_temp_bitmap_1 )
 	rle_temp_bitmap_1->bm_flags = bmp->bm_flags & (~BM_FLAG_RLE);
 
 	for (i=0; i < 64; i++ )    {
+#if defined(MACOS)
+		//dbits1=(unsigned char *)gr_rle_decode_asm( sbits, dbits );
+		gr_rle_decode(sbits, dbits);
+#else
 		dbits1=(unsigned char *)gr_rle_decode_asm( sbits, dbits );
+#endif
 		sbits += (int)bmp->bm_data[4+i];
 		dbits += 64;
+#if defined(MACOS)
+		//Assert( dbits == dbits1 );		// Get John, bogus rle data!
+#else
 		Assert( dbits == dbits1 );		// Get John, bogus rle data!
+#endif
 	}
 }
 
@@ -524,7 +637,11 @@ void gr_rle_expand_scanline_generic( grs_bitmap * dest, int dx, int dy, ubyte *s
 {
 	int i = 0, j;
 	int count;
+#if defined(MACOS)
+	ubyte color = 0;
+#else
 	ubyte color;
+#endif
 
 	if ( x2 < x1 ) return;
 

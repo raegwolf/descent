@@ -50,6 +50,8 @@ void gr_upixel( int x, int y )
 	case BM_LINEAR:
 		DATA[ ROWSIZE*y+x ] = COLOR;
 		return;
+#if defined(MACOS)
+	#if 0
 	case BM_MODEX:
 		gr_modex_setplane( (x+XOFFSET) & 3 );
 		gr_video_memory[(ROWSIZE * (y+YOFFSET)) + ((x+XOFFSET)>>2)] = COLOR;
@@ -57,6 +59,16 @@ void gr_upixel( int x, int y )
 	case BM_SVGA:
 		gr_vesa_pixel( COLOR, (unsigned int)DATA + (unsigned int)ROWSIZE * y + x);
 		return;
+	#endif
+#else
+	case BM_MODEX:
+		gr_modex_setplane( (x+XOFFSET) & 3 );
+		gr_video_memory[(ROWSIZE * (y+YOFFSET)) + ((x+XOFFSET)>>2)] = COLOR;
+		return;
+	case BM_SVGA:
+		gr_vesa_pixel( COLOR, (unsigned int)DATA + (unsigned int)ROWSIZE * y + x);
+		return;
+#endif
 	}
 }
 
@@ -69,6 +81,8 @@ void gr_pixel( int x, int y )
 	case BM_LINEAR:
 		DATA[ ROWSIZE*y+x ] = COLOR;
 		return;
+#if defined(MACOS)
+	#if 0
 	case BM_MODEX:
 		gr_modex_setplane( (x+XOFFSET) & 3 );
 		gr_video_memory[(ROWSIZE * (y+YOFFSET)) + ((x+XOFFSET)>>2)] = COLOR;
@@ -76,6 +90,16 @@ void gr_pixel( int x, int y )
 	case BM_SVGA:
 		gr_vesa_pixel( COLOR, (unsigned int)DATA + (unsigned int)ROWSIZE * y + x);
 		return;
+	#endif
+#else
+	case BM_MODEX:
+		gr_modex_setplane( (x+XOFFSET) & 3 );
+		gr_video_memory[(ROWSIZE * (y+YOFFSET)) + ((x+XOFFSET)>>2)] = COLOR;
+		return;
+	case BM_SVGA:
+		gr_vesa_pixel( COLOR, (unsigned int)DATA + (unsigned int)ROWSIZE * y + x);
+		return;
+#endif
 	}
 }
 
@@ -86,6 +110,8 @@ void gr_bm_upixel( grs_bitmap * bm, int x, int y, unsigned char color )
 	case BM_LINEAR:
 		bm->bm_data[ bm->bm_rowsize*y+x ] = color;
 		return;
+#if defined(MACOS)
+	#if 0
 	case BM_MODEX:
 		x += bm->bm_x;
 		y += bm->bm_y;
@@ -95,6 +121,18 @@ void gr_bm_upixel( grs_bitmap * bm, int x, int y, unsigned char color )
 	case BM_SVGA:
 		gr_vesa_pixel(color,(unsigned int)bm->bm_data + (unsigned int)bm->bm_rowsize * y + x);
 		return;
+	#endif
+#else
+	case BM_MODEX:
+		x += bm->bm_x;
+		y += bm->bm_y;
+		gr_modex_setplane( x & 3 );
+		gr_video_memory[(bm->bm_rowsize * y) + (x/4)] = color;
+		return;
+	case BM_SVGA:
+		gr_vesa_pixel(color,(unsigned int)bm->bm_data + (unsigned int)bm->bm_rowsize * y + x);
+		return;
+#endif
 	}
 }
 
@@ -107,6 +145,8 @@ void gr_bm_pixel( grs_bitmap * bm, int x, int y, unsigned char color )
 	case BM_LINEAR:
 		bm->bm_data[ bm->bm_rowsize*y+x ] = color;
 		return;
+#if defined(MACOS)
+	#if 0
 	case BM_MODEX:
 		x += bm->bm_x;
 		y += bm->bm_y;
@@ -116,7 +156,18 @@ void gr_bm_pixel( grs_bitmap * bm, int x, int y, unsigned char color )
 	case BM_SVGA:
 		gr_vesa_pixel(color,(unsigned int)bm->bm_data + (unsigned int)bm->bm_rowsize * y + x);
 		return;
+	#endif
+#else
+	case BM_MODEX:
+		x += bm->bm_x;
+		y += bm->bm_y;
+		gr_modex_setplane( x & 3 );
+		gr_video_memory[(bm->bm_rowsize * y) + (x/4)] = color;
+		return;
+	case BM_SVGA:
+		gr_vesa_pixel(color,(unsigned int)bm->bm_data + (unsigned int)bm->bm_rowsize * y + x);
+		return;
+#endif
 	}
 }
-
 

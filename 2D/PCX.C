@@ -41,9 +41,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: pcx.c 1.6 1995/03/01 15:38:12 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: pcx.c 1.6 1995/03/01 15:38:12 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -73,6 +79,11 @@ typedef struct	{
 	ubyte		filler[60];
 } PCXHeader;
 
+#if defined(MACOS)
+int pcx_encode_line(ubyte *inBuff, int inLen, FILE * fp);
+int pcx_encode_byte(ubyte byt, ubyte cnt, FILE * fid);
+#else
+#endif
 
 int pcx_read_bitmap( char * filename, grs_bitmap * bmp,int bitmap_type ,ubyte * palette )
 {

@@ -121,8 +121,13 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 #include <fcntl.h>
 #include <io.h>
+#if defined(MACOS)
+#include <sys/types.h>
+#include <sys/stat.h>
+#else
 #include <sys\types.h>
 #include <sys\stat.h>
+#endif
 
 #include "mem.h"
 
@@ -151,7 +156,11 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 int gr_internal_string_clipped(int x, int y, char *s );
 int gr_internal_string_clipped_m(int x, int y, char *s );
 
+#if defined(MACOS)
+ubyte *find_kern_entry(grs_font *font,char first,char second)
+#else
 char *find_kern_entry(grs_font *font,char first,char second)
+#endif
 {
 	ubyte *p=font->ft_kerndata;
 
@@ -168,7 +177,11 @@ char *find_kern_entry(grs_font *font,char first,char second)
 #define INFONT(_c) ((_c >= 0) && (_c <= FMAXCHAR-FMINCHAR))
 
 //takes the character BEFORE being offset into current font
+#if defined(MACOS)
+void get_char_width(int c,int c2,int *width,int *spacing)
+#else
 get_char_width(int c,int c2,int *width,int *spacing)
+#endif
 {
 	int letter;
 
@@ -413,6 +426,365 @@ int gr_internal_string0m(int x, int y, char *s )
 }
 
 
+#if defined(MACOS)
+#if 0
+int gr_internal_string2(int x, int y, char *s )
+{
+	unsigned char * fp;
+	char * text_ptr, * next_row, * text_ptr1;
+	int r, BitMask, i, bits, width, spacing, letter, underline;
+	int page_switched;
+
+	unsigned int VideoOffset, VideoOffset1;
+
+	VideoOffset1 = (intptr_t)DATA + y * ROWSIZE + x;
+
+	gr_vesa_setpage(VideoOffset1 >> 16);
+
+	VideoOffset1 &= 0xFFFF;
+
+	next_row = s;
+
+	while (next_row != NULL )
+	{
+		text_ptr1 = next_row;
+		next_row = NULL;
+
+		if (x==0x8000) {			//centered
+			int xx = get_centered_x(text_ptr1);
+			VideoOffset1 = y * ROWSIZE + xx;
+			gr_vesa_setpage(VideoOffset1 >> 16);
+			VideoOffset1 &= 0xFFFF;
+		}
+
+		for (r=0; r<FHEIGHT; r++)
+		{
+			text_ptr = text_ptr1;
+
+			VideoOffset = VideoOffset1;
+
+			page_switched = 0;
+
+			while (*text_ptr)
+			{
+				if (*text_ptr == '\n' )
+				{
+					next_row = &text_ptr[1];
+					break;
+				}
+
+				underline = 0;
+				if (*text_ptr == '&' )
+				{
+					if ((r==FBASELINE+2) || (r==FBASELINE+3))
+						underline = 1;
+					text_ptr++;
+				}
+
+				get_char_width(text_ptr[0],text_ptr[1],&width,&spacing);
+
+				Assert(width==spacing);		//no kerning support here
+
+				letter = *text_ptr-FMINCHAR;
+
+				if (!INFONT(letter)) {	//not in font, draw as space
+					VideoOffset += spacing;
+					text_ptr++;
+					continue;
+				}
+
+				if (FFLAGS & FT_PROPORTIONAL)
+					fp = FCHARS[letter];
+				else
+					fp = FDATA + letter * BITS_TO_BYTES(width)*FHEIGHT;
+
+				if (underline)
+				{
+					if ( VideoOffset+width > 0xFFFF )
+					{
+						for (i=0; i< width; i++ )
+						{
+							gr_video_memory[VideoOffset++] = FG_COLOR;
+
+							if (VideoOffset > 0xFFFF )
+							{
+								VideoOffset -= 0xFFFF + 1;
+								page_switched = 1;
+								gr_vesa_incpage();
+							}
+						}
+					}
+					else
+					{
+						for (i=0; i< width; i++ )
+							gr_video_memory[VideoOffset++] = FG_COLOR;
+					}
+				}
+				else
+				{
+					// fp -- dword
+					// VideoOffset
+					// width
+
+					fp += BITS_TO_BYTES(width)*r;
+
+					BitMask = 0;
+
+					if ( VideoOffset+width > 0xFFFF )
+					{
+						for (i=0; i< width; i++ )
+						{
+							if (BitMask==0) {
+								bits = *fp++;
+								BitMask = 0x80;
+							}
+
+							if (bits & BitMask)
+								gr_video_memory[VideoOffset++] = FG_COLOR;
+							else
+								gr_video_memory[VideoOffset++] = BG_COLOR;
+
+							BitMask >>= 1;
+
+							if (VideoOffset > 0xFFFF )
+							{
+								VideoOffset -= 0xFFFF + 1;
+								page_switched = 1;
+								gr_vesa_incpage();
+							}
+
+						}
+					} else {
+
+						if (width == 8 )
+						{
+							bits = *fp++;
+
+							if (bits & 0x80) gr_video_memory[VideoOffset+0] = FG_COLOR;
+							else gr_video_memory[VideoOffset+0] = BG_COLOR;
+
+							if (bits & 0x40) gr_video_memory[VideoOffset+1] = FG_COLOR;
+							else gr_video_memory[VideoOffset+1] = BG_COLOR;
+
+							if (bits & 0x20) gr_video_memory[VideoOffset+2] = FG_COLOR;
+							else gr_video_memory[VideoOffset+2] = BG_COLOR;
+
+							if (bits & 0x10) gr_video_memory[VideoOffset+3] = FG_COLOR;
+							else gr_video_memory[VideoOffset+3] = BG_COLOR;
+
+							if (bits & 0x08) gr_video_memory[VideoOffset+4] = FG_COLOR;
+							else gr_video_memory[VideoOffset+4] = BG_COLOR;
+
+							if (bits & 0x04) gr_video_memory[VideoOffset+5] = FG_COLOR;
+							else gr_video_memory[VideoOffset+5] = BG_COLOR;
+
+							if (bits & 0x02) gr_video_memory[VideoOffset+6] = FG_COLOR;
+							else gr_video_memory[VideoOffset+6] = BG_COLOR;
+
+							if (bits & 0x01) gr_video_memory[VideoOffset+7] = FG_COLOR;
+							else gr_video_memory[VideoOffset+7] = BG_COLOR;
+
+							VideoOffset += 8;
+						} else {
+							for (i=0; i< width/2 ; i++ )
+							{
+								if (BitMask==0) {
+									bits = *fp++;
+									BitMask = 0x80;
+								}
+
+								if (bits & BitMask)
+									gr_video_memory[VideoOffset++] = FG_COLOR;
+								else
+									gr_video_memory[VideoOffset++] = BG_COLOR;
+								BitMask >>= 1;
+
+
+								// Unroll twice
+
+								if (BitMask==0) {
+									bits = *fp++;
+									BitMask = 0x80;
+								}
+
+								if (bits & BitMask)
+									gr_video_memory[VideoOffset++] = FG_COLOR;
+								else
+									gr_video_memory[VideoOffset++] = BG_COLOR;
+								BitMask >>= 1;
+							}
+						}
+					}
+				}
+				text_ptr++;
+			}
+
+			VideoOffset1 += ROWSIZE; y++;
+
+			if (VideoOffset1 > 0xFFFF ) {
+				VideoOffset1 -= 0xFFFF + 1;
+				if (!page_switched)
+					gr_vesa_incpage();
+			}
+		}
+	}
+	return 0;
+}
+
+int gr_internal_string2m(int x, int y, char *s )
+{
+	unsigned char * fp;
+	char * text_ptr, * next_row, * text_ptr1;
+	int r, BitMask, i, bits, width, spacing, letter, underline;
+	int page_switched;
+
+	unsigned int VideoOffset, VideoOffset1;
+
+	VideoOffset1 = (unsigned int)DATA + y * ROWSIZE + x;
+
+	gr_vesa_setpage(VideoOffset1 >> 16);
+
+	VideoOffset1 &= 0xFFFF;
+
+	next_row = s;
+
+	while (next_row != NULL )
+	{
+		text_ptr1 = next_row;
+		next_row = NULL;
+
+		if (x==0x8000) {			//centered
+			int xx = get_centered_x(text_ptr1);
+			VideoOffset1 = y * ROWSIZE + xx;
+			gr_vesa_setpage(VideoOffset1 >> 16);
+			VideoOffset1 &= 0xFFFF;
+		}
+
+		for (r=0; r<FHEIGHT; r++)
+		{
+			text_ptr = text_ptr1;
+
+			VideoOffset = VideoOffset1;
+
+			page_switched = 0;
+
+			while (*text_ptr)
+			{
+				if (*text_ptr == '\n' )
+				{
+					next_row = &text_ptr[1];
+					break;
+				}
+
+				underline = 0;
+				if (*text_ptr == '&' )
+				{
+					if ((r==FBASELINE+2) || (r==FBASELINE+3))
+						underline = 1;
+					text_ptr++;
+				}
+
+				get_char_width(text_ptr[0],text_ptr[1],&width,&spacing);
+
+				letter = *text_ptr-FMINCHAR;
+
+				if (!INFONT(letter)) {	//not in font, draw as space
+					VideoOffset += width;
+					text_ptr++;
+					continue;
+				}
+
+				if (FFLAGS & FT_PROPORTIONAL)
+					fp = FCHARS[letter];
+				else
+					fp = FDATA + letter * BITS_TO_BYTES(width)*FHEIGHT;
+
+				if (underline)
+				{
+					if ( VideoOffset+width > 0xFFFF )
+					{
+						for (i=0; i< width; i++ )
+						{
+							gr_video_memory[VideoOffset++] = FG_COLOR;
+
+							if (VideoOffset > 0xFFFF )
+							{
+								VideoOffset -= 0xFFFF + 1;
+								page_switched = 1;
+								gr_vesa_incpage();
+							}
+						}
+					}
+					else
+					{
+						for (i=0; i< width; i++ )
+							gr_video_memory[VideoOffset++] = FG_COLOR;
+					}
+				}
+				else
+				{
+					fp += BITS_TO_BYTES(width)*r;
+
+					BitMask = 0;
+
+					if ( VideoOffset+width > 0xFFFF )
+					{
+						for (i=0; i< width; i++ )
+						{
+							if (BitMask==0) {
+								bits = *fp++;
+								BitMask = 0x80;
+							}
+
+							if (bits & BitMask)
+								gr_video_memory[VideoOffset++] = FG_COLOR;
+							else
+								VideoOffset++;
+
+							BitMask >>= 1;
+
+							if (VideoOffset > 0xFFFF )
+							{
+								VideoOffset -= 0xFFFF + 1;
+								page_switched = 1;
+								gr_vesa_incpage();
+							}
+
+						}
+					} else {
+						for (i=0; i< width; i++ )
+						{
+							if (BitMask==0) {
+								bits = *fp++;
+								BitMask = 0x80;
+							}
+
+							if (bits & BitMask)
+								gr_video_memory[VideoOffset++] = FG_COLOR;
+							else
+								VideoOffset++;;
+							BitMask >>= 1;
+						}
+					}
+				}
+				text_ptr++;
+
+				VideoOffset += spacing-width;
+			}
+
+			VideoOffset1 += ROWSIZE; y++;
+
+			if (VideoOffset1 > 0xFFFF ) {
+				VideoOffset1 -= 0xFFFF + 1;
+				if (!page_switched)
+					gr_vesa_incpage();
+			}
+		}
+	}
+	return 0;
+}
+#endif
+#else
 int gr_internal_string2(int x, int y, char *s )
 {
 	unsigned char * fp;
@@ -768,6 +1140,7 @@ int gr_internal_string2m(int x, int y, char *s )
 	}
 	return 0;
 }
+#endif
 
 //a bitmap for the character
 grs_bitmap char_bm = {
@@ -909,11 +1282,21 @@ int gr_ustring(int x, int y, char *s )
 				return gr_internal_string0m(x,y,s);
 			else
 				return gr_internal_string0(x,y,s);
+#if defined(MACOS)
+		#if 0
 		case BM_SVGA:
 			if ( BG_COLOR == -1)
 				return gr_internal_string2m(x,y,s);
 			else
 				return gr_internal_string2(x,y,s);
+		#endif
+#else
+		case BM_SVGA:
+			if ( BG_COLOR == -1)
+				return gr_internal_string2m(x,y,s);
+			else
+				return gr_internal_string2(x,y,s);
+#endif
 		}
 
 	return 0;
@@ -991,6 +1374,11 @@ void gr_close_font( grs_font * font )
 }
 
 void build_colormap_good( ubyte * palette, ubyte * colormap, int * freq );
+#if defined(MACOS)
+
+extern void decode_data_asm(ubyte *data, int num_pixels, ubyte *colormap, int *count);
+
+#if 0
 void decode_data_asm(ubyte *data, int num_pixels, ubyte * colormap, int * count );
 #pragma aux decode_data_asm parm [esi] [ecx] [edi] [ebx] modify exact [esi edi eax ebx ecx] = \
 "again_ddn:"							\
@@ -1002,6 +1390,20 @@ void decode_data_asm(ubyte *data, int num_pixels, ubyte * colormap, int * count 
 	"inc	esi"					\
 	"dec	ecx"					\
 	"jne	again_ddn"
+#endif	
+#else
+void decode_data_asm(ubyte *data, int num_pixels, ubyte * colormap, int * count );
+#pragma aux decode_data_asm parm [esi] [ecx] [edi] [ebx] modify exact [esi edi eax ebx ecx] = \
+"again_ddn:"							\
+	"xor	eax,eax"				\
+	"mov	al,[esi]"			\
+	"inc	dword ptr [ebx+eax*4]"		\
+	"mov	al,[edi+eax]"		\
+	"mov	[esi],al"			\
+	"inc	esi"					\
+	"dec	ecx"					\
+	"jne	again_ddn"
+#endif
 
 grs_font * gr_init_font( char * fontname )
 {
@@ -1021,20 +1423,52 @@ grs_font * gr_init_font( char * fontname )
 	cfread(&file_id,sizeof(file_id),1,fontfile);
 	cfread(&datasize,sizeof(datasize),1,fontfile);
 
+#if defined(MACOS)
+	if (file_id != 0x4e465350) // PSFN
+#else
 	if (file_id != 'NFSP')
+#endif
 		Error( "File %s is not a font file", fontname );
 
+#if defined(MACOS)
+	
+	int ofs = sizeof(grs_font) - sizeof(grs_font_disc);
+	grs_font_disc font_disc;
+	font = (grs_font *) malloc(datasize + ofs);
+#else
 	font = (grs_font *) malloc(datasize);
+#endif
 
+#if defined(MACOS)
+	cfread(&font_disc,1,sizeof(grs_font_disc),fontfile);
+	cfread((ubyte *)font + sizeof(grs_font),1,datasize - sizeof(grs_font_disc),fontfile);
+
+	font->ft_w = font_disc.ft_w;
+	font->ft_h = font_disc.ft_h;
+	font->ft_flags = font_disc.ft_flags;
+	font->ft_baseline = font_disc.ft_baseline;
+	font->ft_minchar = font_disc.ft_minchar;
+	font->ft_maxchar = font_disc.ft_maxchar;
+	font->ft_bytewidth = font_disc.ft_bytewidth;
+#else
 	cfread(font,1,datasize,fontfile);
+#endif
 
 	nchars = font->ft_maxchar-font->ft_minchar+1;
 
 	if (font->ft_flags & FT_PROPORTIONAL) {
 
+#if defined(MACOS)
+		font->ft_widths = (short *) (((int) font_disc.ft_widths + ofs) + ((ubyte *) font));
+#else
 		font->ft_widths = (short *) (((int) font->ft_widths) + ((ubyte *) font));
+#endif
 
+#if defined(MACOS)
+		font->ft_data = ((int) font_disc.ft_data + ofs) + ((ubyte *) font);
+#else
 		font->ft_data = ((int) font->ft_data) + ((ubyte *) font);
+#endif
 
 		font->ft_chars = (unsigned char **)malloc( nchars * sizeof(unsigned char *));
 
@@ -1050,7 +1484,11 @@ grs_font * gr_init_font( char * fontname )
 
 	} else  {
 
+#if defined(MACOS)
+		font->ft_data = ((unsigned char *) font) + sizeof(grs_font_disc) + ofs;
+#else
 		font->ft_data = ((unsigned char *) font) + sizeof(*font);
+#endif
 
 		font->ft_chars	= NULL;
 		font->ft_widths = NULL;
@@ -1059,7 +1497,11 @@ grs_font * gr_init_font( char * fontname )
 	}
 
 	if (font->ft_flags & FT_KERNED) 
+#if defined(MACOS)
+		font->ft_kerndata = ((int) font_disc.ft_kerndata + ofs) + ((ubyte *) font);
+#else
 		font->ft_kerndata = ((int) font->ft_kerndata) + ((ubyte *) font);
+#endif
 
 
 	if (font->ft_flags & FT_COLOR) {		//remap palette
@@ -1069,7 +1511,11 @@ grs_font * gr_init_font( char * fontname )
 
 		cfread(palette,3,256,fontfile);		//read the palette
 
+#if defined(MACOS)
+		build_colormap_good( palette, colormap, freq );
+#else
 		build_colormap_good( &palette, colormap, freq );
+#endif
 	
 		colormap[255] = 255;
 

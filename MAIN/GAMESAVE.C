@@ -275,9 +275,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  * 
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: gamesave.c 2.2 1995/04/23 14:53:12 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: gamesave.c 2.2 1995/04/23 14:53:12 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 
 #include <io.h>
@@ -285,6 +291,10 @@ static char rcsid[] = "$Id: gamesave.c 2.2 1995/04/23 14:53:12 john Exp $";
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
+#if defined(MACOS)
+#include "psstring.h"
+#else
+#endif
 
 #include "mono.h"
 #include "key.h"
@@ -382,6 +392,10 @@ char Gamesave_current_filename[128];
 
 #define HOSTAGE_DATA_VERSION	0
 
+#if defined(MACOS)
+#pragma pack(push,1)
+#else
+#endif
 //Start old wall structures
 
 typedef struct v16_wall {
@@ -450,6 +464,10 @@ struct {
 	int		matcen_howmany;
 	int		matcen_sizeof;
 } game_fileinfo;
+#if defined(MACOS)
+#pragma pack(pop)
+#else
+#endif
 
 #ifdef EDITOR
 extern char mine_filename[];
@@ -575,7 +593,12 @@ int Gamesave_num_players=0;
 int N_save_pof_names=25;
 char Save_pof_names[MAX_POLYGON_MODELS][13];
 
+#if defined(MACOS)
+void check_and_fix_matrix(vms_matrix *m);
+void dump_mine_info(void);
+#else
 check_and_fix_matrix(vms_matrix *m);
+#endif
 
 void verify_object( object * obj )	{
 
@@ -824,7 +847,11 @@ static void gs_write_angvec(vms_angvec *v,FILE *file)
 #endif
 
 //reads one object of the given version from the given file
+#if defined(MACOS)
+void read_object(object *obj,CFILE *f,int version)
+#else
 read_object(object *obj,CFILE *f,int version)
+#endif
 {
 	obj->type				= read_byte(f);
 	obj->id					= read_byte(f);
@@ -1194,7 +1221,11 @@ write_object(object *obj,FILE *f)
 // If level != -1, it loads the filename with extension changed to .min
 // Otherwise it loads the appropriate level mine.
 // returns 0=everything ok, 1=old version, -1=error
+#if defined(MACOS)
+int load_game_data(CFILE *LoadFile)
+#else
 load_game_data(CFILE *LoadFile)
+#endif
 {
 	int i,j;
 	int start_offset;
@@ -1250,32 +1281,64 @@ load_game_data(CFILE *LoadFile)
 
 	game_fileinfo.fileinfo_version = read_short(LoadFile);
 	game_fileinfo.fileinfo_sizeof = read_int(LoadFile);
+#if defined(MACOS)
+	Assert(game_fileinfo.fileinfo_sizeof == sizeof(game_fileinfo));
+#else
+#endif
 	for(i=0; i<15; i++)
 		game_fileinfo.mine_filename[i] = read_byte(LoadFile);
 	game_fileinfo.level = read_int(LoadFile);
 	game_fileinfo.player_offset = read_int(LoadFile);				// Player info
 	game_fileinfo.player_sizeof = read_int(LoadFile);
+#if defined(MACOS)
+	Assert(game_fileinfo.player_sizeof == sizeof(player));
+#else
+#endif
 	game_fileinfo.object_offset = read_int(LoadFile);				// Object info
 	game_fileinfo.object_howmany = read_int(LoadFile);    	
 	game_fileinfo.object_sizeof = read_int(LoadFile);  
+#if defined(MACOS)
+	//Assert(game_fileinfo.object_sizeof == sizeof(object));
+#else
+#endif
 	game_fileinfo.walls_offset = read_int(LoadFile);
 	game_fileinfo.walls_howmany = read_int(LoadFile);
 	game_fileinfo.walls_sizeof = read_int(LoadFile);
+#if defined(MACOS)
+	Assert(game_fileinfo.walls_sizeof == sizeof(wall));
+#else
+#endif
 	game_fileinfo.doors_offset = read_int(LoadFile);
 	game_fileinfo.doors_howmany = read_int(LoadFile);
 	game_fileinfo.doors_sizeof = read_int(LoadFile);
+#if defined(MACOS)
+	Assert(game_fileinfo.doors_sizeof == sizeof(active_door));
+#else
+#endif
 	game_fileinfo.triggers_offset = read_int(LoadFile);
 	game_fileinfo.triggers_howmany = read_int(LoadFile);
 	game_fileinfo.triggers_sizeof = read_int(LoadFile);
+#if defined(MACOS)
+	Assert(game_fileinfo.triggers_sizeof == sizeof(trigger));
+#else
+#endif
 	game_fileinfo.links_offset = read_int(LoadFile);
 	game_fileinfo.links_howmany = read_int(LoadFile);
 	game_fileinfo.links_sizeof = read_int(LoadFile);
 	game_fileinfo.control_offset = read_int(LoadFile);
 	game_fileinfo.control_howmany = read_int(LoadFile);
 	game_fileinfo.control_sizeof = read_int(LoadFile);
+#if defined(MACOS)
+	Assert(game_fileinfo.control_sizeof == sizeof(control_center_triggers));
+#else
+#endif
 	game_fileinfo.matcen_offset = read_int(LoadFile);
 	game_fileinfo.matcen_howmany = read_int(LoadFile);
 	game_fileinfo.matcen_sizeof = read_int(LoadFile);
+#if defined(MACOS)
+	Assert(game_fileinfo.matcen_sizeof == sizeof(matcen_info));
+#else
+#endif
 
 //	if (cfread( &game_fileinfo, game_top_fileinfo.fileinfo_sizeof, 1, LoadFile )!=1)
 //		Error( "Error reading game_fileinfo in gamesave.c" );
@@ -1447,9 +1510,18 @@ load_game_data(CFILE *LoadFile)
 					 	Error( "Error reading ControlCenterTriggers in gamesave.c", i);
 				} else {
 					ControlCenterTriggers.num_links = read_short( LoadFile );
+#if defined(MACOS)
+					j = 0;
+					//for (j=0; j<MAX_WALLS_PER_LINK; j++ );
+#else
 					for (j=0; j<MAX_WALLS_PER_LINK; j++ );
+#endif
 						ControlCenterTriggers.seg[j] = read_short( LoadFile );
+#if defined(MACOS)
+					//for (j=0; j<MAX_WALLS_PER_LINK; j++ );
+#else
 					for (j=0; j<MAX_WALLS_PER_LINK; j++ );
+#endif
 						ControlCenterTriggers.side[j] = read_short( LoadFile );
 				}
 		}
@@ -1588,7 +1660,12 @@ int load_level(char * filename_passed)
 	#endif
 	CFILE * LoadFile;
 	char filename[128];
+#if defined(MACOS)
+	int sig,version,minedata_offset,gamedata_offset;
+	int hostagetext_offset;
+#else
 	int sig,version,minedata_offset,gamedata_offset,hostagetext_offset;
+#endif
 	int mine_err,game_err;
 
 	#ifdef COMPACT_SEGS
@@ -1652,8 +1729,17 @@ int load_level(char * filename_passed)
 	minedata_offset		= read_int(LoadFile);
 	gamedata_offset		= read_int(LoadFile);
 	hostagetext_offset	= read_int(LoadFile);
+#if defined(MACOS)
+	(void)version;
+	(void)hostagetext_offset;
+#else
+#endif
 
+#if defined(MACOS)
+	Assert(sig == 0x504c564c); // 'PLVL');
+#else
 	Assert(sig == 'PLVL');
+#endif
 
 	cfseek(LoadFile,minedata_offset,SEEK_SET);
 	#ifdef EDITOR
@@ -2165,5 +2251,4 @@ void load_hostage_data(CFILE * fp,int do_read)
 
 }
 #endif	//HOSTAGE_FACES
-
 

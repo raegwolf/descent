@@ -155,9 +155,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: switch.c 2.1 1995/03/21 14:39:08 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: switch.c 2.1 1995/03/21 14:39:08 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -168,7 +174,13 @@ static char rcsid[] = "$Id: switch.c 2.1 1995/03/21 14:39:08 john Exp $";
 #include "game.h"
 #include "switch.h"
 #include "inferno.h"
+#if defined(MACOS)
+#ifdef EDITOR
 #include "editor\editor.h"
+#endif
+#else
+#include "editor\editor.h"
+#endif
 #include "segment.h"
 #include "error.h"
 #include "gameseg.h"
@@ -403,5 +415,4 @@ void triggers_frame_process()
 		if (Triggers[i].time >= 0)
 			Triggers[i].time -= FrameTime;
 }
-
 

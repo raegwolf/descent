@@ -160,9 +160,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  * 
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: titles.c 2.10 1995/06/15 12:14:16 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: titles.c 2.10 1995/06/15 12:14:16 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -200,6 +206,10 @@ static char rcsid[] = "$Id: titles.c 2.10 1995/06/15 12:14:16 john Exp $";
 #include "vfx.h"
 #include "newmenu.h"
 #include "state.h"
+#if defined(MACOS)
+#include "gameseq.h"
+#else
+#endif
 
 ubyte New_pal[768];
 int	New_pal_254_bash;
@@ -218,6 +228,11 @@ int	Skip_briefing_screens=0;
 int	Briefing_foreground_colors[MAX_BRIEFING_COLORS], Briefing_background_colors[MAX_BRIEFING_COLORS];
 int	Current_color = 0;
 int	Erase_color;
+#if defined(MACOS)
+
+void title_save_game();
+#else
+#endif
 
 int local_key_inkey(void)
 {
@@ -277,6 +292,10 @@ int show_title_screen( char * filename, int allow_keys )
 			}
 		}
 		#endif
+#if defined(MACOS)
+		gr_sync_display();
+#else
+#endif
 	}			
 	if (gr_palette_fade_out( New_pal, 32, allow_keys ))
 		return 1;
@@ -410,7 +429,11 @@ byte	Door_dir=1, Door_div_count=0, Animating_bitmap_type=0;
 //	-----------------------------------------------------------------------------
 void show_bitmap_frame(void)
 {
+#if defined(MACOS)
+	grs_canvas	*curcanv_save, *bitmap_canv = NULL;
+#else
 	grs_canvas	*curcanv_save, *bitmap_canv;
+#endif
 	grs_bitmap	*bitmap_ptr;
 
 	//	Only plot every nth frame.
@@ -559,14 +582,26 @@ void init_briefing_bitmap(void)
 //	-----------------------------------------------------------------------------
 //	Returns char width.
 //	If show_robot_flag set, then show a frame of the spinning robot.
+#if defined(MACOS)
+static int show_char_delay(char the_char, int delay, int robot_num, int cursor_flag, fix *start_time)
+#else
 int show_char_delay(char the_char, int delay, int robot_num, int cursor_flag)
+#endif
 {
 	int	w, h, aw;
 	char	message[2];
+#if defined(MACOS)
+	//fix	start_time;
+#else
 	fix	start_time;
+#endif
 	int	i;
 
+#if defined(MACOS)
+	//start_time = timer_get_fixed_seconds();
+#else
 	start_time = timer_get_fixed_seconds();
+#endif
 
 	message[0] = the_char;
 	message[1] = 0;
@@ -587,10 +622,21 @@ int show_char_delay(char the_char, int delay, int robot_num, int cursor_flag)
 		if (delay != 0)
 			show_bitmap_frame();
 
+#if defined(MACOS)
+		if (delay)
+			while (timer_get_fixed_seconds() < *start_time + delay/2)
+				gr_sync_display();
+#else
 		while (timer_get_fixed_seconds() < start_time + delay/2)
 			;
+#endif
 
+#if defined(MACOS)
+		//start_time = timer_get_fixed_seconds();
+		*start_time += delay/2;
+#else
 		start_time = timer_get_fixed_seconds();
+#endif
 	}
 
 	//	Erase cursor
@@ -618,9 +664,17 @@ int load_briefing_screen( int screen_num )
 {
 	int	pcx_error;
 
+#if defined(MACOS)
+	if ((pcx_error=pcx_read_bitmap( Briefing_screens[screen_num].bs_name, &grd_curcanv->cv_bitmap, grd_curcanv->cv_bitmap.bm_type, New_pal ))!=PCX_ERROR_NONE)	{
+#else
 	if ((pcx_error=pcx_read_bitmap( &Briefing_screens[screen_num].bs_name, &grd_curcanv->cv_bitmap, grd_curcanv->cv_bitmap.bm_type, New_pal ))!=PCX_ERROR_NONE)	{
+#endif
 		printf( "File '%s', PCX load error: %s\n  (It's a briefing screen.  Does this cause you pain?)\n",Briefing_screens[screen_num].bs_name, pcx_errormsg(pcx_error));
+#if defined(MACOS)
+		mprintf((0, "File '%s', PCX load error: %s (%i)\n  (It's a briefing screen.  Does this cause you pain?)\n",Briefing_screens[screen_num].bs_name, pcx_errormsg(pcx_error), pcx_error));
+#else
 		printf(0, "File '%s', PCX load error: %s (%i)\n  (It's a briefing screen.  Does this cause you pain?)\n",Briefing_screens[screen_num].bs_name, pcx_errormsg(pcx_error), pcx_error);
+#endif
 		Int3();
 		return 0;
 	}
@@ -666,7 +720,12 @@ void title_save_game()
 	gr_ubitmap(0,0,&save_canv->cv_bitmap);
 	gr_set_current_canvas(save_canv);
 	gr_clear_canvas(gr_find_closest_color_current( 0, 0, 0));
+#if defined(MACOS)
+	extern ubyte gr_current_pal[768];
+	memcpy(palette, gr_current_pal, 768);
+#else
 	gr_palette_read( palette );
+#endif
 	gr_palette_load( gr_palette );
 	state_save_all(1);
 	gr_palette_clear();
@@ -726,6 +785,10 @@ int show_briefing_message(int screen_num, char *message)
 	int	tab_stop=0;
 	int	flashing_cursor=0;
 	int	new_page=0;
+#if defined(MACOS)
+	fix	start_time;
+#else
+#endif
 
 	Bitmap_name[0] = 0;
 
@@ -735,6 +798,11 @@ int show_briefing_message(int screen_num, char *message)
 	gr_set_curfont( GAME_FONT );    
 
 	init_char_pos(bsp->text_ulx, bsp->text_uly);
+#if defined(MACOS)
+	
+	start_time = timer_get_fixed_seconds();
+#else
+#endif
 
 	while (!done) {
 		ch = *message++;
@@ -817,7 +885,11 @@ int show_briefing_message(int screen_num, char *message)
 						break;					// Time out after 1 minute..
 					}
 					while (timer_get_fixed_seconds() < start_time + KEY_DELAY_DEFAULT/2)
+#if defined(MACOS)
+						gr_sync_display();
+#else
 						;
+#endif
 					flash_cursor(flashing_cursor);
 					show_spinning_robot_frame(robot_num);
 					show_bitmap_frame();
@@ -867,11 +939,19 @@ int show_briefing_message(int screen_num, char *message)
 			}
 		} else {
 			prev_ch = ch;
+#if defined(MACOS)
+			Briefing_text_x += show_char_delay(ch, delay_count, robot_num, flashing_cursor, &start_time);
+#else
 			Briefing_text_x += show_char_delay(ch, delay_count, robot_num, flashing_cursor);
+#endif
 		}
 
 		//	Check for Esc -> abort.
+#if defined(MACOS)
+		key_check = delay_count ? local_key_inkey() : 0;
+#else
 		key_check = local_key_inkey();
+#endif
 		if ( key_check == KEY_ESC ) {
 			rval = 1;
 			done = 1;
@@ -902,7 +982,11 @@ int show_briefing_message(int screen_num, char *message)
 					break;					// Time out after 1 minute..
 				}
 				while (timer_get_approx_seconds() < start_time + KEY_DELAY_DEFAULT/2)
+#if defined(MACOS)
+					gr_sync_display();
+#else
 					;
+#endif
 				flash_cursor(flashing_cursor);
 				show_spinning_robot_frame(robot_num);
 				show_bitmap_frame();
@@ -1039,7 +1123,11 @@ int show_briefing_screen( int screen_num, int allow_keys)
 	}
 
 	briefing_bm.bm_data=NULL;	
+#if defined(MACOS)
+	if ((pcx_error=pcx_read_bitmap( Briefing_screens[screen_num].bs_name, &briefing_bm, BM_LINEAR, New_pal ))!=PCX_ERROR_NONE)	{
+#else
 	if ((pcx_error=pcx_read_bitmap( &Briefing_screens[screen_num].bs_name, &briefing_bm, BM_LINEAR, New_pal ))!=PCX_ERROR_NONE)	{
+#endif
 		printf( "PCX load error: %s.  File '%s'\n\n", pcx_errormsg(pcx_error), Briefing_screens[screen_num].bs_name);
 		mprintf((0, "File '%s', PCX load error: %s (%i)\n  (It's a briefing screen.  Does this cause you pain?)\n",Briefing_screens[screen_num].bs_name, pcx_errormsg(pcx_error), pcx_error));
 		Int3();
@@ -1223,5 +1311,4 @@ void do_end_game(void)
 #endif
 
 }
-
 

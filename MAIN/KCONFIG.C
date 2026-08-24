@@ -286,9 +286,15 @@ n *
  */
 
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: kconfig.c 2.11 1995/08/23 16:08:04 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: kconfig.c 2.11 1995/08/23 16:08:04 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -338,7 +344,11 @@ int     SenseStatus1( void );
 byte fades[64] = { 1,1,1,2,2,3,4,4,5,6,8,9,10,12,13,15,16,17,19,20,22,23,24,26,27,28,28,29,30,30,31,31,31,31,31,30,30,29,28,28,27,26,24,23,22,20,19,17,16,15,13,12,10,9,8,6,5,4,4,3,2,2,1,1 };
 
 //char * invert_text[2] = { "N", "Y" };
+#if defined(MACOS)
+//char * joybutton_text[28] = { "BTN 1", "BTN 2", "BTN 3", "BTN 4", "", "TRIG", "LEFT", "HAT ï¿½", "RIGHT", "", "", "HAT ï¿½", "MID", "", "", "HAT ", "", "", "", "HAT ï¿½", "TRIG", "LEFT", "RIGHT", "", "UP","DOWN","LEFT", "RIGHT" };
+#else
 //char * joybutton_text[28] = { "BTN 1", "BTN 2", "BTN 3", "BTN 4", "", "TRIG", "LEFT", "HAT ", "RIGHT", "", "", "HAT €", "MID", "", "", "HAT ", "", "", "", "HAT ‚", "TRIG", "LEFT", "RIGHT", "", "UP","DOWN","LEFT", "RIGHT" };
+#endif
 //char * joyaxis_text[4] = { "X1", "Y1", "X2", "Y2" };
 //char * mouseaxis_text[2] = { "L/R", "F/B" };
 //char * mousebutton_text[3] = { "Left", "Right", "Mid" };
@@ -356,6 +366,29 @@ int joyaxis_text[4] = { TNUM_X1, TNUM_Y1, TNUM_X2, TNUM_Y2 };
 int mouseaxis_text[2] = { TNUM_L_R, TNUM_F_B };
 int mousebutton_text[3] = { TNUM_LEFT, TNUM_RIGHT, TNUM_MID };
 
+#if defined(MACOS)
+char * key_text[256] = {         \
+"","ESC","1","2","3","4","5","6","7","8","9","0","-", 			\
+"=","BSPC","TAB","Q","W","E","R","T","Y","U","I","O",				\
+"P","[","]","\x83","LCTRL","A","S","D","F",        \
+"G","H","J","K","L",";","'","`",        \
+"LSHFT","\\","Z","X","C","V","B","N","M",",",      \
+".","/","RSHFT","PAD*","LALT","SPC",      \
+"CPSLK","F1","F2","F3","F4","F5","F6","F7","F8","F9",        \
+"F10","NMLCK","SCLK","PAD7","PAD8","PAD9","PAD-",   \
+"PAD4","PAD5","PAD6","PAD+","PAD1","PAD2","PAD3","PAD0", \
+"PAD.","","","","F11","F12","","","","","","","","","",         \
+"","","","","","","","","","","","","","","","","","","","",     \
+"","","","","","","","","","","","","","","","","","","","",     \
+"","","","","","","","","","","","","","","","","","",           \
+"PAD\x83","RCTRL","","","","","","","","","","","","","", \
+"","","","","","","","","","","PAD/","","","RALT","",      \
+"","","","","","","","","","","","","","HOME","\x82","PGUP",     \
+"","\x81","","\x7f","","END","\x80","PGDN","INS",       \
+"DEL","","","","","","","","","","","","","","","","","",     \
+"","","","","","","","","","","","","","","","","","","","",     \
+"","","","","","","" };
+#else
 char * key_text[256] = {         \
 "","ESC","1","2","3","4","5","6","7","8","9","0","-", 			\
 "=","BSPC","TAB","Q","W","E","R","T","Y","U","I","O",				\
@@ -377,8 +410,13 @@ char * key_text[256] = {         \
 "DEL","","","","","","","","","","","","","","","","","",     \
 "","","","","","","","","","","","","","","","","","","","",     \
 "","","","","","","" };
+#endif
 
+#if defined(MACOS)
+int system_keys[] = { KEY_ESC, KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_F11, KEY_F12, KEY_0, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL, KEY_PRINT_SCREEN };
+#else
 ubyte system_keys[] = { KEY_ESC, KEY_F1, KEY_F2, KEY_F3, KEY_F4, KEY_F5, KEY_F6, KEY_F7, KEY_F8, KEY_F9, KEY_F10, KEY_F11, KEY_F12, KEY_0, KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL, KEY_PRINT_SCREEN };
+#endif
 
 //extern void GameLoop(int, int );
 
@@ -416,6 +454,21 @@ typedef struct kc_item {
 
 int Num_items=23;
 kc_item *All_items;
+#if defined(MACOS)
+
+void kc_drawitem( kc_item *item, int is_current );
+void kc_change_key( kc_item * item );
+void kc_change_joyaxis( kc_item * item );
+void kc_change_joybutton( kc_item * item );
+void kc_change_mouseaxis( kc_item * item );
+void kc_change_mousebutton( kc_item * item );
+void kc_change_invert( kc_item * item );
+void kconfig_read_fcs( int raw_axis );
+void kconfig_set_fcs_button( int btn, int button );
+int SenseGetData( int function, int cls, fix *yaw, fix *pitch, fix *roll, int *buttons );
+int SenseSetZero( int function, int cls );
+#else
+#endif
 
 ubyte kconfig_settings[CONTROL_MAX_TYPES][MAX_CONTROLS];
 
@@ -767,6 +820,10 @@ void kconfig_sub(kc_item * items,int nitems, char * title)
 	kc_drawitem( &items[citem], 1 );
 
 	while(1)		{
+#if defined(MACOS)
+		gr_sync_display();
+#else
+#endif
 		k = key_inkey();
 		if ( !time_stopped ) {
 			#ifdef NETWORK
@@ -934,7 +991,11 @@ void kc_drawitem( kc_item *item, int is_current )
 	gr_string( item->x, item->y, Text_string[item->text_num1] );
 
 	if (item->value==255) {
+#if defined(MACOS)
+		strcpy( btext, "" );
+#else
 		sprintf( btext, "" );
+#endif
 	} else {
 		switch( item->type )	{
 			case BT_KEY:
@@ -1013,14 +1074,26 @@ void kc_change_key( kc_item * item )
 		#endif
 //		if ( Game_mode & GM_MULTI )
 //			GameLoop( 0, 0 );				// Continue
+#if defined(MACOS)
+		gr_sync_display();
+#else
+#endif
 		k = key_inkey();
+#if defined(MACOS)
+		//delay(10);
+#else
 		delay(10);
+#endif
 		kc_drawquestion( item );
 	
 		for (i=0; i<256; i++ )	{
 			if (keyd_pressed[i] && (strlen(key_text[i])>0))	{
 				f = 0;
+#if defined(MACOS)
+				for (n=0; n<sizeof(system_keys) / sizeof(system_keys[0]); n++ )
+#else
 				for (n=0; n<sizeof(system_keys); n++ )
+#endif
 					if ( system_keys[n] == i )
 						f=1;
 				if (!f)	
@@ -1067,8 +1140,16 @@ void kc_change_joybutton( kc_item * item )
 		#endif
 //		if ( Game_mode & GM_MULTI )
 //			GameLoop( 0, 0 );				// Continue
+#if defined(MACOS)
+		gr_sync_display();
+#else
+#endif
 		k = key_inkey();
+#if defined(MACOS)
+		//delay(10);
+#else
 		delay(10);
+#endif
 
 		if (k == KEY_PRINT_SCREEN)
 			save_screen_shot(0);
@@ -1135,8 +1216,16 @@ void kc_change_mousebutton( kc_item * item )
 		#endif
 //		if ( Game_mode & GM_MULTI )
 //			GameLoop( 0, 0 );				// Continue
+#if defined(MACOS)
+		gr_sync_display();
+#else
+#endif
 		k = key_inkey();
+#if defined(MACOS)
+		//delay(10);
+#else
 		delay(10);
+#endif
 
 		if (k == KEY_PRINT_SCREEN)
 			save_screen_shot(0);
@@ -1189,8 +1278,16 @@ void kc_change_joyaxis( kc_item * item )
 		#endif
 //		if ( Game_mode & GM_MULTI )
 //			GameLoop( 0, 0 );				// Continue
+#if defined(MACOS)
+		gr_sync_display();
+#else
+#endif
 		k = key_inkey();
+#if defined(MACOS)
+		//delay(10);
+#else
 		delay(10);
+#endif
 
 		if (k == KEY_PRINT_SCREEN)
 			save_screen_shot(0);
@@ -1246,8 +1343,16 @@ void kc_change_mouseaxis( kc_item * item )
 		#endif
 //		if ( Game_mode & GM_MULTI )
 //			GameLoop( 0, 0 );				// Continue
+#if defined(MACOS)
+		gr_sync_display();
+#else
+#endif
 		k = key_inkey();
+#if defined(MACOS)
+		//delay(10);
+#else
 		delay(10);
+#endif
 
 		if (k == KEY_PRINT_SCREEN)
 			save_screen_shot(0);
@@ -1392,7 +1497,11 @@ extern int			VR_sensitivity;
 						
 int VR_sense_range[3] = { 25, 50, 75 };
 
+#if defined(MACOS)
+void read_head_tracker()
+#else
 read_head_tracker()
+#endif
 {
 	fix yaw, pitch, roll;
 	int buttons;
@@ -1437,14 +1546,22 @@ ubyte 			kc_use_external_control = 0;
 ubyte				kc_enable_external_control = 1;
 ubyte 			kc_external_intno = 0;
 control_info	*kc_external_control = NULL;
+#if defined(MACOS)
+char				*kc_external_name = NULL;
+#else
 ubyte				*kc_external_name = NULL;
+#endif
 ubyte				kc_external_version = 0;
 
 void kconfig_init_external_controls(int intno, int address)
 {
 	int i;
 	kc_external_intno = intno;
+#if defined(MACOS)
+	kc_external_control	= (control_info *)(intptr_t)address;
+#else
 	kc_external_control	= (control_info *)address;
+#endif
 	kc_use_external_control = 1;
 	kc_enable_external_control  = 1;
 
@@ -1458,10 +1575,95 @@ void kconfig_init_external_controls(int intno, int address)
 	if ( i )
 		kc_external_version = atoi(Args[i+1]);
 	
+#if defined(MACOS)
+	printf( "%s int: 0x%x, data: 0x%p, ver:%d\n", kc_external_name, kc_external_intno, kc_external_control, kc_external_version );
+#else
 	printf( "%s int: 0x%x, data: 0x%x, ver:%d\n", kc_external_name, kc_external_intno, kc_external_control, kc_external_version );
+#endif
 
 }
 
+#if defined(MACOS)
+#if 1
+void kconfig_read_external_controls();
+#else
+void kconfig_read_external_controls()
+{
+	//union REGS r;
+
+	if ( !kc_enable_external_control ) return;
+
+	if ( kc_external_version == 0 ) 
+		memset( kc_external_control, 0, sizeof(control_info) );
+	else if ( kc_external_version > 0 ) 	{
+		memset( kc_external_control, 0, sizeof(control_info)+sizeof(vms_angvec) + 64 );
+		if ( kc_external_version > 1 ) {
+			// Write ship pos and angles to external controls...
+			ubyte *temp_ptr = (ubyte *)kc_external_control;
+			vms_vector *ship_pos;
+			vms_matrix *ship_orient;
+			memset( kc_external_control, 0, sizeof(control_info)+sizeof(vms_angvec) + 64 + sizeof(vms_vector)+sizeof(vms_matrix) );
+			temp_ptr += sizeof(control_info)+sizeof(vms_angvec) + 64;
+			ship_pos = (vms_vector *)temp_ptr;
+			temp_ptr += sizeof(vms_vector);
+			ship_orient = (vms_matrix *)temp_ptr;
+			// Fill in ship postion...
+			*ship_pos = Objects[Players[Player_num].objnum].pos;
+			// Fill in ship orientation...
+			*ship_orient = Objects[Players[Player_num].objnum].orient;
+		}
+	}
+
+	if ( grd_curscreen->sc_mode != SM_320x200C )			// (If in automap...)
+		kc_external_control->automap_state = 1;
+	//memset(&r,0,sizeof(r));
+
+	//int386 ( kc_external_intno, &r, &r);		// Read external info...
+
+	if ( Player_num > -1 )	{
+		Objects[Players[Player_num].objnum].mtype.phys_info.flags &= (~PF_TURNROLL);	// Turn off roll when turning
+		Objects[Players[Player_num].objnum].mtype.phys_info.flags &= (~PF_LEVELLING);	// Turn off leveling to nearest side.
+		Auto_leveling_on = 0;
+
+		if ( kc_external_version > 0 ) {		
+			vms_matrix tempm, ViewMatrix;
+			vms_angvec * Kconfig_abs_movement;
+			char * oem_message;
+	
+			Kconfig_abs_movement = (vms_angvec *)((uint)(intptr_t)kc_external_control + sizeof(control_info));
+	
+			if ( Kconfig_abs_movement->p || Kconfig_abs_movement->b || Kconfig_abs_movement->h )	{
+				vm_angles_2_matrix(&tempm,Kconfig_abs_movement);
+				vm_matrix_x_matrix(&ViewMatrix,&Objects[Players[Player_num].objnum].orient,&tempm);
+				Objects[Players[Player_num].objnum].orient = ViewMatrix;		
+			}
+			oem_message = (char *)((uint)(intptr_t)Kconfig_abs_movement + sizeof(vms_angvec));
+			if (oem_message[0] != '\0' )
+				HUD_init_message( oem_message );
+		}
+	}
+
+
+
+	Controls.pitch_time += fixmul(kc_external_control->pitch_time,FrameTime);						
+	Controls.vertical_thrust_time += fixmul(kc_external_control->vertical_thrust_time,FrameTime);
+	Controls.heading_time += fixmul(kc_external_control->heading_time,FrameTime);
+	Controls.sideways_thrust_time += fixmul(kc_external_control->sideways_thrust_time ,FrameTime);
+	Controls.bank_time += fixmul(kc_external_control->bank_time ,FrameTime);
+	Controls.forward_thrust_time += fixmul(kc_external_control->forward_thrust_time ,FrameTime);
+	Controls.rear_view_down_count += kc_external_control->rear_view_down_count;	
+	Controls.rear_view_down_state |= kc_external_control->rear_view_down_state;	
+	Controls.fire_primary_down_count += kc_external_control->fire_primary_down_count;
+	Controls.fire_primary_state |= kc_external_control->fire_primary_state;
+	Controls.fire_secondary_state |= kc_external_control->fire_secondary_state;
+	Controls.fire_secondary_down_count += kc_external_control->fire_secondary_down_count;
+	Controls.fire_flare_down_count += kc_external_control->fire_flare_down_count;
+	Controls.drop_bomb_down_count += kc_external_control->drop_bomb_down_count;	
+	Controls.automap_down_count += kc_external_control->automap_down_count;
+	Controls.automap_state |= kc_external_control->automap_state;
+}
+#endif
+#else
 void kconfig_read_external_controls()
 {
 	union REGS r;
@@ -1537,6 +1739,7 @@ void kconfig_read_external_controls()
 	Controls.automap_down_count += kc_external_control->automap_down_count;
 	Controls.automap_state |= kc_external_control->automap_state;
 }
+#endif
 
 void controls_read_all()
 {
@@ -2149,6 +2352,8 @@ void kc_set_controls()
 }
 
 
+#if defined(MACOS)
+#if 0
 int SenseStatus1( void )
 {
 	union  REGS     regs;
@@ -2196,6 +2401,59 @@ int SenseGetData( int function, int cls, fix *yaw, fix *pitch, fix *roll, int *b
     
 	return( (int)(regs.x.eax >> 8) );
 }
+#else
+int SenseStatus1() { return 0; }
+int SenseGetData( int function, int cls, fix *yaw, fix *pitch, fix *roll, int *buttons ) { return 0; }
+#endif
+#else
+int SenseStatus1( void )
+{
+	union  REGS     regs;
+	struct SREGS    sregs;
+	int function, result, i;
+
+	for( i=MIN_SENSE_FUNCTION; i <= MAX_SENSE_FUNCTION; i++ )	{
+		result    = i;
+		result   |= (SENSE_DRIVER_STATUS << 8);
+		function  = SENSE_DRIVER_STATUS;
+		function |= (i << 8);        
+		memset( &regs, 0, sizeof(regs));
+		memset( &sregs, 0, sizeof(sregs));
+		regs.x.ecx = 0;
+		regs.x.edx = 0;
+		regs.x.ebx = 0;
+		regs.x.eax = function;
+		int386( SENSE_VECTOR, &regs, &regs );
+        
+		if( regs.x.eax == result )
+			return( function & 0xFF00 );
+	}
+    
+	return( 0 );
+}
+
+int SenseGetData( int function, int cls, fix *yaw, fix *pitch, fix *roll, int *buttons )
+{
+	union  REGS     regs;
+	struct SREGS    sregs;
+	memset( &regs, 0, sizeof(regs));
+	memset( &sregs, 0, sizeof(sregs));
+	regs.x.eax = function | GET_DEVICE_DATA;
+	regs.x.ebx = 1 | (cls << 8);
+
+	int386x( SENSE_VECTOR, &regs, &regs, &sregs);
+    
+	*yaw     = (short)(regs.x.ebx & 0xffff);
+	*pitch   = (short)(regs.x.ecx & 0xffff);
+	*roll    = (short)(regs.x.edx & 0xffff);
+	*yaw *= -1;
+	*pitch *= -1;
+	*roll *= -1;
+	*buttons = regs.x.eax & 0x00FF;
+    
+	return( (int)(regs.x.eax >> 8) );
+}
+#endif
 
 //--unused-- int SenseSetVideo( int function, int cls, int mode )
 //--unused-- {
@@ -2223,6 +2481,8 @@ void kconfig_center_headset()
 
 }
 
+#if defined(MACOS)
+#if 0
 int SenseSetZero( int function, int cls )
 {
 	union  REGS     regs;
@@ -2236,6 +2496,24 @@ int SenseSetZero( int function, int cls )
     
 	return( (int)(regs.x.eax >> 8) );
 }
+#else
+int SenseSetZero( int function, int cls ) { return 0; }
+#endif
+#else
+int SenseSetZero( int function, int cls )
+{
+	union  REGS     regs;
+	struct SREGS    sregs;
+	memset( &regs, 0, sizeof(regs));
+	memset( &sregs, 0, sizeof(sregs));
+	regs.x.eax = function | SET_ZERO;
+	regs.x.ebx = 1 | (cls << 8);
+
+	int386x( SENSE_VECTOR, &regs, &regs, &sregs);
+    
+	return( (int)(regs.x.eax >> 8) );
+}
+#endif
 
 //--unused-- int SenseReSetZero( int function, int cls )
 //--unused-- {
@@ -2269,8 +2547,11 @@ void kconfig_sense_init()
 			printf("%s\n", TXT_VFX1_ERROR1);
 		}
 	} else {
+#if defined(MACOS)
+		printf( "%s\n", TXT_VFX1_ERROR2 );
+#else
 		printf( TXT_VFX1_ERROR2 );
+#endif
 	}
 }
-
 

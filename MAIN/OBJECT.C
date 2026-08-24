@@ -313,12 +313,22 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: object.c 2.3 1995/06/15 12:30:51 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: object.c 2.3 1995/06/15 12:30:51 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <string.h>	// for memset
 #include <stdio.h>
+#if defined(MACOS)
+#include "psrand.h"
+#else
+#endif
 
 #include "inferno.h"
 #include "game.h"
@@ -368,9 +378,21 @@ static char rcsid[] = "$Id: object.c 2.3 1995/06/15 12:30:51 john Exp $";
 #include "args.h"
 #include "text.h"
 #include "piggy.h"
+#if defined(MACOS)
+#include "gameseq.h"
+#else
+#endif
 
 #ifdef EDITOR
 #include "editor\editor.h"
+#endif
+#if defined(MACOS)
+
+static inline int max(int a, int b) { return a > b ? a : b; }
+static inline int min(int a, int b) { return a < b ? a : b; }
+void obj_detach_all(object *parent);
+void obj_detach_one(object *sub);
+#else
 #endif
 
 /*
@@ -414,7 +436,11 @@ int print_object_info = 0;
 //--unused-- int Player_controller_type = 0;
 
 //	List of objects rendered last frame in order.  Created at render time, used by homing missiles in laser.c
+#if defined(MACOS)
+short Ordered_rendered_object_list[MAX_RENDERED_OBJECTS];
+#else
 short ordered_rendered_object_list[MAX_RENDERED_OBJECTS];
+#endif
 int	Num_rendered_objects = 0;
 
 #ifndef NDEBUG
@@ -529,7 +555,11 @@ fix	Cloak_fadein_duration;
 fix	Cloak_fadeout_duration;
 
 //do special cloaked render
+#if defined(MACOS)
+void draw_cloaked_object(object *obj,fix light,fix *glow,fix cloak_start_time,fix cloak_end_time,bitmap_index * alt_textures)
+#else
 draw_cloaked_object(object *obj,fix light,fix *glow,fix cloak_start_time,fix cloak_end_time,bitmap_index * alt_textures)
+#endif
 {
 	fix cloak_delta_time,total_cloaked_time;
 	fix light_scale;
@@ -598,12 +628,20 @@ draw_cloaked_object(object *obj,fix light,fix *glow,fix cloak_start_time,fix clo
 
 		new_light = fixmul(light,light_scale);
 		new_glow = fixmul(*glow,light_scale);
+#if defined(MACOS)
+		draw_polygon_model(&obj->pos,&obj->orient,obj->rtype.pobj_info.anim_angles,obj->rtype.pobj_info.model_num,obj->rtype.pobj_info.subobj_flags,new_light,&new_glow, alt_textures );
+#else
 		draw_polygon_model(&obj->pos,&obj->orient,&obj->rtype.pobj_info.anim_angles,obj->rtype.pobj_info.model_num,obj->rtype.pobj_info.subobj_flags,new_light,&new_glow, alt_textures );
+#endif
 	}
 	else {
 		Gr_scanline_darkening_level = cloak_value;
 		g3_set_special_render(draw_tmap_flat,NULL,NULL);		//use special flat drawer
+#if defined(MACOS)
+		draw_polygon_model(&obj->pos,&obj->orient,obj->rtype.pobj_info.anim_angles,obj->rtype.pobj_info.model_num,obj->rtype.pobj_info.subobj_flags,light,glow, alt_textures );
+#else
 		draw_polygon_model(&obj->pos,&obj->orient,&obj->rtype.pobj_info.anim_angles,obj->rtype.pobj_info.model_num,obj->rtype.pobj_info.subobj_flags,light,glow, alt_textures );
+#endif
 		g3_set_special_render(NULL,NULL,NULL);
 		Gr_scanline_darkening_level = GR_FADE_LEVELS;
 	}
@@ -648,7 +686,11 @@ void draw_polygon_object(object *obj)
 		for (i=0;i<pm->n_textures;i++)
 			bm_ptrs[i] = Textures[obj->rtype.pobj_info.tmap_override];
 
+#if defined(MACOS)
+		draw_polygon_model(&obj->pos,&obj->orient,obj->rtype.pobj_info.anim_angles,obj->rtype.pobj_info.model_num,obj->rtype.pobj_info.subobj_flags,light,&engine_glow_value,bm_ptrs);
+#else
 		draw_polygon_model(&obj->pos,&obj->orient,&obj->rtype.pobj_info.anim_angles,obj->rtype.pobj_info.model_num,obj->rtype.pobj_info.subobj_flags,light,&engine_glow_value,bm_ptrs);
+#endif
 	}
 	else {
 		bitmap_index * alt_textures = NULL;
@@ -666,11 +708,19 @@ void draw_polygon_object(object *obj)
 			else
 				draw_cloaked_object(obj,light,&engine_glow_value, GameTime-F1_0*10, GameTime+F1_0*10,alt_textures);
 		} else {
+#if defined(MACOS)
+			draw_polygon_model(&obj->pos,&obj->orient,obj->rtype.pobj_info.anim_angles,obj->rtype.pobj_info.model_num,obj->rtype.pobj_info.subobj_flags,light,&engine_glow_value,alt_textures);
+#else
 			draw_polygon_model(&obj->pos,&obj->orient,&obj->rtype.pobj_info.anim_angles,obj->rtype.pobj_info.model_num,obj->rtype.pobj_info.subobj_flags,light,&engine_glow_value,alt_textures);
+#endif
 			if (obj->type == OBJ_WEAPON && (Weapon_info[obj->id].model_num_inner > -1 )) {
 				fix dist_to_eye = vm_vec_dist_quick(&Viewer->pos, &obj->pos);
 				if (dist_to_eye < Simple_model_threshhold_scale * F1_0*2)
+#if defined(MACOS)
+					draw_polygon_model(&obj->pos,&obj->orient,obj->rtype.pobj_info.anim_angles,Weapon_info[obj->id].model_num_inner,obj->rtype.pobj_info.subobj_flags,light,&engine_glow_value,alt_textures);
+#else
 					draw_polygon_model(&obj->pos,&obj->orient,&obj->rtype.pobj_info.anim_angles,Weapon_info[obj->id].model_num_inner,obj->rtype.pobj_info.subobj_flags,light,&engine_glow_value,alt_textures);
+#endif
 			}
 		}
 	}
@@ -775,7 +825,11 @@ void create_small_fireball_on_object(object *objp, fix size_scale, int sound_fla
 
 	vm_vec_add2(&pos, &rand_vec);
 
+#if defined(MACOS)
+	size = fixmul(size_scale, F1_0 + psrand()*4);
+#else
 	size = fixmul(size_scale, F1_0 + rand()*4);
+#endif
 
 	segnum = find_point_seg(&pos, objp->segnum);
 	if (segnum != -1) {
@@ -784,7 +838,11 @@ void create_small_fireball_on_object(object *objp, fix size_scale, int sound_fla
 		if (!expl_obj)
 			return;
 		obj_attach(objp,expl_obj);
+#if defined(MACOS)
+		if (psrand() < 8192) {
+#else
 		if (rand() < 8192) {
+#endif
 			fix	vol = F1_0/2;
 			if (objp->type == OBJ_ROBOT)
 				vol *= 2;
@@ -808,7 +866,11 @@ void create_vclip_on_object(object *objp, fix size_scale, int vclip_num)
 
 	vm_vec_add2(&pos, &rand_vec);
 
+#if defined(MACOS)
+	size = fixmul(size_scale, F1_0 + psrand()*4);
+#else
 	size = fixmul(size_scale, F1_0 + rand()*4);
+#endif
 
 	segnum = find_point_seg(&pos, objp->segnum);
 	if (segnum != -1) {
@@ -829,7 +891,11 @@ void create_vclip_on_object(object *objp, fix size_scale, int vclip_num)
 // -- mk, 02/05/95 -- // -----------------------------------------------------------------------------
 // -- mk, 02/05/95 -- void do_player_invulnerability_effect(object *objp)
 // -- mk, 02/05/95 -- {
+#if defined(MACOS)
+// -- mk, 02/05/95 -- 	if (psrand() < FrameTime*8) {
+#else
 // -- mk, 02/05/95 -- 	if (rand() < FrameTime*8) {
+#endif
 // -- mk, 02/05/95 -- 		create_vclip_on_object(objp, F1_0, VCLIP_INVULNERABILITY_EFFECT);
 // -- mk, 02/05/95 -- 	}
 // -- mk, 02/05/95 -- }
@@ -964,7 +1030,11 @@ void render_object(object *obj)
 //--unused-- }
 
 
+#if defined(MACOS)
+void check_and_fix_matrix(vms_matrix *m);
+#else
 check_and_fix_matrix(vms_matrix *m);
+#endif
 
 #define vm_angvec_zero(v) (v)->p=(v)->b=(v)->h=0
 
@@ -1697,12 +1767,21 @@ void dead_player_frame(void)
 		if (time_dead > DEATH_SEQUENCE_EXPLODE_TIME) {
 			if (!Player_exploded) {
 
+#if defined(MACOS)
+				if (Players[Player_num].hostages_on_board > 1)
+					HUD_init_message(TXT_SHIP_DESTROYED_2, Players[Player_num].hostages_on_board);
+				else if (Players[Player_num].hostages_on_board == 1)
+					HUD_init_message(TXT_SHIP_DESTROYED_1);
+				else
+					HUD_init_message(TXT_SHIP_DESTROYED_0);
+#else
 			if (Players[Player_num].hostages_on_board > 1)
 				HUD_init_message(TXT_SHIP_DESTROYED_2, Players[Player_num].hostages_on_board);
 			else if (Players[Player_num].hostages_on_board == 1)
 				HUD_init_message(TXT_SHIP_DESTROYED_1);
 			else
 				HUD_init_message(TXT_SHIP_DESTROYED_0);
+#endif
 
 				Player_exploded = 1;
 				if (!Arcade_mode) {
@@ -1726,7 +1805,11 @@ void dead_player_frame(void)
 				ConsoleObject->type = OBJ_GHOST;						//..and kill intersections
 			}
 		} else {
+#if defined(MACOS)
+			if (psrand() < FrameTime*4) {
+#else
 			if (rand() < FrameTime*4) {
+#endif
 				#ifdef NETWORK
 				if (Game_mode & GM_MULTI)
 					multi_send_create_explosion(Player_num);
@@ -1760,8 +1843,13 @@ void dead_player_frame(void)
 	}
 }
 
+#if defined(MACOS)
+//Killed_in_frame = -1;
+//Killed_objnum = -1;
+#else
 Killed_in_frame = -1;
 Killed_objnum = -1;
+#endif
 
 //	------------------------------------------------------------------------------------------------------------------
 void start_player_death_sequence(object *player)
@@ -1780,8 +1868,13 @@ void start_player_death_sequence(object *player)
 	if (!(Game_mode & GM_MULTI))
 		HUD_clear_messages();
 
+#if defined(MACOS)
+	//Killed_in_frame = FrameCount;
+	//Killed_objnum = player-Objects;
+#else
 	Killed_in_frame = FrameCount;
 	Killed_objnum = player-Objects;
+#endif
 	Death_sequence_aborted = 0;
 
 	#ifdef NETWORK
@@ -1877,7 +1970,11 @@ void obj_relink(int objnum,int newsegnum)
 }
 
 //process a continuously-spinning object
+#if defined(MACOS)
+void spin_object(object *obj)
+#else
 spin_object(object *obj)
+#endif
 {
 	vms_angvec rotangs;
 	vms_matrix rotmat, new_pm;
@@ -1901,6 +1998,134 @@ spin_object(object *obj)
 void object_move_one( object * obj )
 {
 
+#if defined(MACOS)
+	#ifndef DEMO_ONLY
+
+	int	previous_segment = obj->segnum;
+
+	obj->last_pos = obj->pos;			// Save the current position
+
+	if ((obj->type==OBJ_PLAYER) && (Player_num==obj->id))	{
+		fix fuel;
+		fuel=fuelcen_give_fuel( &Segments[obj->segnum], i2f(100)-Players[Player_num].energy );
+		if (fuel > 0 )	{
+			Players[Player_num].energy += fuel;
+		}
+	}
+
+	if (obj->lifeleft != IMMORTAL_TIME)	//if not immortal...
+		obj->lifeleft -= FrameTime;		//...inevitable countdown towards death
+
+	switch (obj->control_type) {
+
+		case CT_NONE: break;
+
+		case CT_FLYING:
+
+			#if !defined(NDEBUG) && !defined(NMONO)
+			if (print_object_info>1) mprintf( (0, "Moving player object #%d\n", obj-Objects ));
+			#endif
+
+			read_flying_controls( obj );
+
+			break;
+
+		case CT_REPAIRCEN: Int3();	// -- hey! these are no longer supported!! -- do_repair_sequence(obj); break;
+
+		case CT_POWERUP: do_powerup_frame(obj); break;
+	
+		case CT_MORPH:			//morph implies AI
+			do_morph_frame(obj);
+			//NOTE: FALLS INTO AI HERE!!!!
+
+		case CT_AI:
+			//NOTE LINK TO CT_MORPH ABOVE!!!
+			if (Game_suspended & SUSP_ROBOTS) return;
+			#if !defined(NDEBUG) && !defined(NMONO)
+			if (print_object_info>1) mprintf( (0, "AI: Moving robot object #%d\n",obj-Objects ));
+			#endif
+			do_ai_frame(obj);
+			break;
+
+		case CT_WEAPON:		Laser_do_weapon_sequence(obj); break;
+		case CT_EXPLOSION:	do_explosion_sequence(obj); break;
+
+		#ifndef RELEASE
+		case CT_SLEW:
+			if ( keyd_pressed[KEY_PAD5] ) slew_stop();
+			if ( keyd_pressed[KEY_NUMLOCK] ) 		{
+				slew_reset_orient(); 
+				#ifdef DOS
+				* (ubyte *) 0x417 &= ~0x20;		//kill numlock
+				#endif
+			}
+			slew_frame(0 );		// Does velocity addition for us.
+			break;
+		#endif
+
+//		case CT_FLYTHROUGH:
+//			do_flythrough(obj,0);			// HACK:do_flythrough should operate on an object!!!!
+//			//check_object_seg(obj);
+//			return;	// DON'T DO THE REST OF OBJECT STUFF SINCE THIS IS A SPECIAL CASE!!!
+//			break;
+
+		case CT_DEBRIS: do_debris_frame(obj); break;
+
+		case CT_LIGHT: break;		//doesn't do anything
+
+		case CT_REMOTE: break;     //movement is handled in com_process_input
+
+		case CT_CNTRLCEN: do_controlcen_frame(obj); break;
+
+		default:
+
+			Error("Unknown control type %d in object %i, sig/type/id = %i/%i/%i",obj->control_type, obj-Objects, obj->signature, obj->type, obj->id);
+
+			break;
+
+	}
+
+	if (obj->lifeleft < 0 ) {		// We died of old age
+		obj->flags |= OF_SHOULD_BE_DEAD;
+		if ( Weapon_info[obj->id].damage_radius )
+			explode_badass_weapon(obj);
+	}
+
+	if (obj->type == OBJ_NONE || obj->flags&OF_SHOULD_BE_DEAD)
+		return;			//object has been deleted
+
+	switch (obj->movement_type) {
+
+		case MT_NONE:			break;								//this doesn't move
+
+		case MT_PHYSICS:		do_physics_sim(obj);	break;	//move by physics
+
+		case MT_SPINNING:		spin_object(obj); break;
+
+	}
+
+	//	If player and moved to another segment, see if hit any triggers.
+	if (obj->type == OBJ_PLAYER && obj->movement_type==MT_PHYSICS)	{
+		if (previous_segment != obj->segnum) {
+			int	connect_side,i;
+			for (i=0;i<n_phys_segs-1;i++) {
+				connect_side = find_connect_side(&Segments[phys_seglist[i+1]], &Segments[phys_seglist[i]]);
+				if (connect_side != -1)
+					check_trigger(&Segments[phys_seglist[i]], connect_side, obj-Objects);
+					//check_trigger(&Segments[previous_segment], connect_side, obj-Objects);
+				#ifndef NDEBUG
+				else {	// segments are not directly connected, so do binary subdivision until you find connected segments.
+					mprintf((1, "UNCONNECTED SEGMENTS %d,%d\n",phys_seglist[i+1],phys_seglist[i]));
+				}
+				#endif
+			}
+		}
+	}
+
+	#else
+		obj++;		//kill warning
+	#endif
+#else
 	#ifndef DEMO_ONLY
 
 	int	previous_segment = obj->segnum;
@@ -2025,6 +2250,7 @@ void object_move_one( object * obj )
 	#else
 		obj++;		//kill warning
 	#endif
+#endif
 }
 
 int	Max_used_objects = MAX_OBJECTS - 20;
@@ -2169,7 +2395,11 @@ int update_object_seg(object * obj )
 
 
 //go through all objects and make sure they have the correct segment numbers
+#if defined(MACOS)
+void fix_object_segs()
+#else
 fix_object_segs()
+#endif
 {
 	int i;
 
@@ -2305,5 +2535,4 @@ void obj_detach_all(object *parent)
 	while (parent->attached_obj != -1)
 		obj_detach_one(&Objects[parent->attached_obj]);
 }
-
 

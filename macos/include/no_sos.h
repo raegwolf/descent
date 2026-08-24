@@ -1,0 +1,3 @@
+#ifndef DESCENT_MACOS_NO_SOS_H
+#define DESCENT_MACOS_NO_SOS_H
+#endif

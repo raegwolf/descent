@@ -232,9 +232,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  *
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: scores.c 2.2 1995/06/15 12:13:54 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: scores.c 2.2 1995/06/15 12:13:54 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -264,9 +270,17 @@ static char rcsid[] = "$Id: scores.c 2.2 1995/06/15 12:13:54 john Exp $";
 #include "timer.h"
 #include "text.h"
 #include "vfx.h"
+#if defined(MACOS)
+#include "bfile.h"
+#else
+#endif
 
 #define VERSION_NUMBER 		1
+#if defined(MACOS)
+#define SCORES_FILENAME 	"descent.hi"
+#else
 #define SCORES_FILENAME 	"DESCENT.HI"
+#endif
 #define COOL_MESSAGE_LEN 	50
 #define MAX_HIGH_SCORES 	10
 
@@ -292,6 +306,11 @@ static all_scores Scores;
 
 stats_info Last_game;
 
+#if defined(MACOS)
+void scores_view(int citem);
+
+#else
+#endif
 char scores_filename[128];
 
 #define XX  (7)
@@ -316,18 +335,30 @@ char * get_scores_filename()
 
 void scores_read()
 {
+#if defined(MACOS)
+	BFILE * fp;
+#else
 	FILE * fp;
+#endif
 	int fsize;
 
 	// clear score array...
 	memset( &Scores, 0, sizeof(all_scores) );
 
+#if defined(MACOS)
+	fp = bfopen( get_scores_filename(), "rb" );
+#else
 	fp = fopen( get_scores_filename(), "rb" );
+#endif
 	if (fp==NULL) {
 		int i;
 
 	 	// No error message needed, code will work without a scores file
+#if defined(MACOS)
+		sprintf( Scores.cool_saying, "%s", TXT_REGISTER_DESCENT );
+#else
 		sprintf( Scores.cool_saying, TXT_REGISTER_DESCENT );
+#endif
 		sprintf( Scores.stats[0].name, "Parallax" );
 		sprintf( Scores.stats[1].name, "Mike" );
 		sprintf( Scores.stats[2].name, "Matt" );
@@ -344,15 +375,28 @@ void scores_read()
 		return;
 	}
 		
+#if defined(MACOS)
+	fsize = bfilelength( fp );
+#else
 	fsize = filelength( fileno( fp ));
+#endif
 
 	if ( fsize != sizeof(all_scores) )	{
+#if defined(MACOS)
+		bfclose(fp);
+#else
 		fclose(fp);
+#endif
 		return;
 	}
 	// Read 'em in...
+#if defined(MACOS)
+	bfread( &Scores, sizeof(all_scores),1, fp );
+	bfclose(fp);
+#else
 	fread( &Scores, sizeof(all_scores),1, fp );
 	fclose(fp);
+#endif
 
 	if ( (Scores.version!=VERSION_NUMBER)||(Scores.signature[0]!='D')||(Scores.signature[1]!='H')||(Scores.signature[2]!='S') )	{
 		memset( &Scores, 0, sizeof(all_scores) );
@@ -362,9 +406,18 @@ void scores_read()
 
 void scores_write()
 {
+#if defined(MACOS)
+	BFILE * fp;
+#else
 	FILE * fp;
+#endif
 
+#if defined(MACOS)
+	mprintf((0,"writing scores %s\n", get_scores_filename()));
+	fp = bfopen( get_scores_filename(), "wb" );
+#else
 	fp = fopen( get_scores_filename(), "wb" );
+#endif
 	if (fp==NULL) {
 		nm_messagebox( TXT_WARNING, 1, TXT_OK, "%s\n'%s'", TXT_UNABLE_TO_OPEN, get_scores_filename()  );
 		return;
@@ -374,8 +427,14 @@ void scores_write()
 	Scores.signature[1]='H';
 	Scores.signature[2]='S';
 	Scores.version = VERSION_NUMBER;
+#if defined(MACOS)
+	bfwrite( &Scores,sizeof(all_scores),1, fp );
+	bfclose(fp);
+	mprintf((0,"writing scores done\n"));
+#else
 	fwrite( &Scores,sizeof(all_scores),1, fp );
 	fclose(fp);
+#endif
 }
 
 void int_to_string( int number, char *dest )
@@ -623,6 +682,11 @@ ReshowScores:
 				scores_draw_item( citem, &Scores.stats[citem] );
 		}
 
+#if defined(MACOS)
+		gr_sync_display();
+		
+#else
+#endif
 		for (i=0; i<4; i++ )	
 			if (joy_get_button_down_cnt(i)>0) done=1;
 		for (i=0; i<3; i++ )	
@@ -658,5 +722,4 @@ ReshowScores:
 	game_flush_inputs();
 	
 }
-
 

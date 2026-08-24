@@ -238,9 +238,15 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  * 
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: physics.c 2.2 1995/03/24 14:48:54 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: physics.c 2.2 1995/03/24 14:48:54 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 //@@#include <malloc.h>
 #include <stdio.h>
@@ -300,7 +306,11 @@ int floor_levelling=0;
 //--unused-- }
 
 //make sure matrix is orthogonal
+#if defined(MACOS)
+void check_and_fix_matrix(vms_matrix *m)
+#else
 check_and_fix_matrix(vms_matrix *m)
+#endif
 {
 	vms_matrix tempm;
 
@@ -316,7 +326,11 @@ void do_physics_align_object( object * obj )
 	//vms_vector forvec = {0,0,f1_0};
 	vms_matrix temp_matrix;
 	fix d,largest_d=-f1_0;
+#if defined(MACOS)
+	int i,best_side=0;
+#else
 	int i,best_side;
+#endif
 
 
 	// bank player according to segment orientation
@@ -373,12 +387,21 @@ void do_physics_align_object( object * obj )
 			#endif
 
 	if (labs(vm_vec_dot(&desired_upvec,&obj->orient.fvec)) < f1_0/2) {
+#if defined(MACOS)
+		//fixang save_delta_ang;
+#else
 		fixang save_delta_ang;
+#endif
 		vms_angvec tangles;
 		
 		vm_vector_2_matrix(&temp_matrix,&obj->orient.fvec,&desired_upvec,NULL);
 
+#if defined(MACOS)
+		//save_delta_ang =
+		delta_ang = vm_vec_delta_ang(&obj->orient.uvec,&temp_matrix.uvec,&obj->orient.fvec);
+#else
 		save_delta_ang = delta_ang = vm_vec_delta_ang(&obj->orient.uvec,&temp_matrix.uvec,&obj->orient.fvec);
+#endif
 
 		delta_ang += obj->mtype.phys_info.turnroll;
 
@@ -401,7 +424,11 @@ void do_physics_align_object( object * obj )
 
 }
 
+#if defined(MACOS)
+void set_object_turnroll(object *obj)
+#else
 set_object_turnroll(object *obj)
+#endif
 {
 	fixang desired_bank;
 
@@ -550,7 +577,11 @@ void do_physics_sim_rot(object *obj)
 
 //	-----------------------------------------------------------------------------------------------------------
 //Simulate a physics object for this frame
+#if defined(MACOS)
+void do_physics_sim(object *obj)
+#else
 do_physics_sim(object *obj)
+#endif
 {
 	int ignore_obj_list[MAX_IGNORE_OBJS],n_ignore_objs;
 	int iseg;
@@ -570,7 +601,11 @@ do_physics_sim(object *obj)
 	vms_vector start_pos;
 	int obj_stopped=0;
 	fix moved_time;			//how long objected moved before hit something
+#if defined(MACOS)
+	//vms_vector save_p0,save_p1;
+#else
 	vms_vector save_p0,save_p1;
+#endif
 	physics_info *pi;
 	int orig_segnum = obj->segnum;
 
@@ -742,8 +777,13 @@ if (Dont_move_ai_objects)
 //@@			if (get_seg_masks(&obj->pos,obj->segnum,0).centermask!=0)
 //@@				Int3();
 
+#if defined(MACOS)
+//save_p0 = *fq.p0;
+//save_p1 = *fq.p1;
+#else
 save_p0 = *fq.p0;
 save_p1 = *fq.p1;
+#endif
 
 
 		fate = find_vector_intersection(&fq,&hit_info);
@@ -945,12 +985,21 @@ save_p1 = *fq.p1;
 
 						vm_vec_scale_add2(&obj->mtype.phys_info.velocity,&hit_info.hit_wallnorm,-wall_part);
 
+#if defined(MACOS)
+						#ifdef EXTRA_DEBUG
+						if (obj == debug_obj) {
+							printf("   sliding - wall_norm %x %x %x\n",XYZ(&hit_info.hit_wallnorm));
+							printf("   wall_part %x, new velocity = %x %x %x\n",wall_part,XYZ(&obj->mtype.phys_info.velocity));
+						}
+						#endif
+#else
 						#ifdef EXTRA_DEBUG
 						if (obj == debug_obj) {
 							printf("   sliding - wall_norm %x %x %x\n",wall_part,XYZ(&hit_info.hit_wallnorm));
 							printf("   wall_part %x, new velocity = %x %x %x\n",wall_part,XYZ(&obj->mtype.phys_info.velocity));
 						}
 						#endif
+#endif
 
 						try_again = 1;
 					}
@@ -1160,7 +1209,11 @@ save_p1 = *fq.p1;
 
 //Applies an instantaneous force on an object, resulting in an instantaneous
 //change in velocity.
+#if defined(MACOS)
+void phys_apply_force(object *obj,vms_vector *force_vec)
+#else
 phys_apply_force(object *obj,vms_vector *force_vec)
+#endif
 {
 
 	if (obj->movement_type != MT_PHYSICS)
@@ -1236,7 +1289,11 @@ void physics_turn_towards_vector(vms_vector *goal_vector, object *obj, fix rate)
 //	-----------------------------------------------------------------------------
 //	Applies an instantaneous whack on an object, resulting in an instantaneous
 //	change in orientation.
+#if defined(MACOS)
+void phys_apply_rot(object *obj,vms_vector *force_vec)
+#else
 phys_apply_rot(object *obj,vms_vector *force_vec)
+#endif
 {
 	fix	rate, vecmag;
 
@@ -1269,7 +1326,11 @@ phys_apply_rot(object *obj,vms_vector *force_vec)
 
 //this routine will set the thrust for an object to a value that will
 //(hopefully) maintain the object's current velocity
+#if defined(MACOS)
+void set_thrust_from_velocity(object *obj)
+#else
 set_thrust_from_velocity(object *obj)
+#endif
 {
 	fix k;
 
@@ -1280,5 +1341,4 @@ set_thrust_from_velocity(object *obj)
 	vm_vec_copy_scale(&obj->mtype.phys_info.thrust,&obj->mtype.phys_info.velocity,k);
 
 }
-
 

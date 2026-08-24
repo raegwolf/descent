@@ -68,10 +68,17 @@ extern int  gr_vesa_setlogical(int pixels_per_scanline);
 extern void gr_vesa_bitblt( unsigned char * source_ptr, unsigned int vesa_address, int height, int width );
 extern void gr_vesa_pixel( unsigned char color, unsigned int offset );
 
+#if defined(MACOS)
+void gr_linear_movsb( void * source, void * dest, unsigned int nbytes);
+void gr_linear_movsw( void * source, void * dest, unsigned int nbytes);
+void gr_linear_movsd( void * source, void * dest, unsigned int nbytes);
+void gr_linear_stosd( void * source, unsigned char color, unsigned int nbytes);
+#else
 void gr_linear_movsb( void * source, void * dest, unsigned short nbytes);
 void gr_linear_movsw( void * source, void * dest, unsigned short nbytes);
 void gr_linear_movsd( void * source, void * dest, unsigned short nbytes);
 void gr_linear_stosd( void * source, unsigned char color, unsigned short nbytes);
+#endif
 extern unsigned int gr_var_color;
 extern unsigned int gr_var_bwidth;
 extern unsigned char * gr_var_bitmap;
@@ -97,5 +104,4 @@ extern unsigned char * gr_video_memory;
 
 
 void order( int *x1, int *x2 );
-
 

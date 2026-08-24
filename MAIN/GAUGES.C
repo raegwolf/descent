@@ -239,14 +239,24 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  * 
  */
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: gauges.c 2.7 1995/12/19 16:18:33 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: gauges.c 2.7 1995/12/19 16:18:33 john Exp $";
 #pragma on (unreferenced)
+#endif
 
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#if defined(MACOS)
+#include "psstring.h"
+#else
+#endif
 
 #include "inferno.h"
 #include "game.h"
@@ -593,7 +603,11 @@ gauge_box gauge_boxes[] = {
 int	Color_0_31_0 = -1;
 
 //copy a box from the off-screen buffer to the visible page
+#if defined(MACOS)
+void copy_gauge_box(gauge_box *box,grs_bitmap *bm)
+#else
 copy_gauge_box(gauge_box *box,grs_bitmap *bm)
+#endif
 {
 
 	if (box->spanlist) {
@@ -614,7 +628,11 @@ copy_gauge_box(gauge_box *box,grs_bitmap *bm)
 }
 
 //fills in the coords of the hostage video window
+#if defined(MACOS)
+void get_hostage_window_coords(int *x,int *y,int *w,int *h)
+#else
 get_hostage_window_coords(int *x,int *y,int *w,int *h)
+#endif
 {
 	if (Cockpit_mode == CM_STATUS_BAR) {
 		*x = SB_SECONDARY_W_BOX_LEFT;
@@ -1067,7 +1085,11 @@ void hud_show_shield(void)
 }
 
 //draw the icons for number of lives
+#if defined(MACOS)
+void hud_show_lives()
+#else
 hud_show_lives()
+#endif
 {
 	if ((HUD_nmessages > 0) && (strlen(HUD_messages[hud_first]) > 38))
 		return;
@@ -1087,7 +1109,11 @@ hud_show_lives()
 
 }
 
+#if defined(MACOS)
+void sb_show_lives()
+#else
 sb_show_lives()
+#endif
 {
 	int x,y;
 	grs_bitmap * bm = &GameBitmaps[Gauges[GAUGE_LIVES].index];
@@ -1354,10 +1380,19 @@ void draw_player_ship(int cloak_state,int old_cloak_state,int x, int y)
 	grs_bitmap *bm;
 
 	if (Game_mode & GM_TEAM)	{
+#if defined(MACOS)
+		#ifdef NETWORK
+		PIGGY_PAGE_IN(Gauges[GAUGE_SHIPS+get_team(Player_num)]);
+		bm = &GameBitmaps[Gauges[GAUGE_SHIPS+get_team(Player_num)].index];
+		#else
+		bm = NULL;
+		#endif
+#else
 		#ifdef NETWORK
 		PIGGY_PAGE_IN(Gauges[GAUGE_SHIPS+get_team(Player_num)]);
 		bm = &GameBitmaps[Gauges[GAUGE_SHIPS+get_team(Player_num)].index];
 		#endif
+#endif
 	} else {
 		PIGGY_PAGE_IN(Gauges[GAUGE_SHIPS+Player_num]);
 		bm = &GameBitmaps[Gauges[GAUGE_SHIPS+Player_num].index];
@@ -1470,7 +1505,11 @@ void draw_keys()
 }
 
 
+#if defined(MACOS)
+void draw_weapon_info_sub(int info_index,gauge_box *box,int pic_x,int pic_y,char *name,int text_x,int text_y)
+#else
 draw_weapon_info_sub(int info_index,gauge_box *box,int pic_x,int pic_y,char *name,int text_x,int text_y)
+#endif
 {
 	grs_bitmap *bm;
 	char *p;
@@ -1514,7 +1553,11 @@ draw_weapon_info_sub(int info_index,gauge_box *box,int pic_x,int pic_y,char *nam
 }
 
 
+#if defined(MACOS)
+void draw_weapon_info(int weapon_type,int weapon_num)
+#else
 draw_weapon_info(int weapon_type,int weapon_num)
+#endif
 {
 #ifdef SHAREWARE
 	if (Newdemo_state==ND_STATE_RECORDING )
@@ -1549,7 +1592,11 @@ draw_weapon_info(int weapon_type,int weapon_num)
 				SECONDARY_W_TEXT_X,SECONDARY_W_TEXT_Y);
 }
 
+#if defined(MACOS)
+void draw_ammo_info(int x,int y,int ammo_count,int primary)
+#else
 draw_ammo_info(int x,int y,int ammo_count,int primary)
+#endif
 {
 	int w;
 
@@ -1565,7 +1612,11 @@ draw_ammo_info(int x,int y,int ammo_count,int primary)
 	gr_printf(x,y,"%03d",ammo_count);
 }
 
+#if defined(MACOS)
+void draw_primary_ammo_info(int ammo_count)
+#else
 draw_primary_ammo_info(int ammo_count)
+#endif
 {
 	if (Cockpit_mode == CM_STATUS_BAR)
 		draw_ammo_info(SB_PRIMARY_AMMO_X,SB_PRIMARY_AMMO_Y,ammo_count,1);
@@ -1573,7 +1624,11 @@ draw_primary_ammo_info(int ammo_count)
 		draw_ammo_info(PRIMARY_AMMO_X,PRIMARY_AMMO_Y,ammo_count,1);
 }
 
+#if defined(MACOS)
+void draw_secondary_ammo_info(int ammo_count)
+#else
 draw_secondary_ammo_info(int ammo_count)
+#endif
 {
 	if (Cockpit_mode == CM_STATUS_BAR)
 		draw_ammo_info(SB_SECONDARY_AMMO_X,SB_SECONDARY_AMMO_Y,ammo_count,0);
@@ -1643,7 +1698,11 @@ int draw_weapon_box(int weapon_type,int weapon_num)
 
 }
 
+#if defined(MACOS)
+void draw_weapon_boxes()
+#else
 draw_weapon_boxes()
+#endif
 {
 	int boxofs = (Cockpit_mode==CM_STATUS_BAR)?2:0;
 	int drew;
@@ -1680,7 +1739,11 @@ draw_weapon_boxes()
 }
 
 
+#if defined(MACOS)
+void sb_draw_energy_bar(int energy)
+#else
 sb_draw_energy_bar(energy)
+#endif
 {
 	int erase_height;
 
@@ -1704,7 +1767,11 @@ sb_draw_energy_bar(energy)
 					  
 }
 
+#if defined(MACOS)
+void sb_draw_shield_num(int shield)
+#else
 sb_draw_shield_num(int shield)
+#endif
 {
 	grs_bitmap *bm = &GameBitmaps[cockpit_bitmap[Cockpit_mode].index];
 
@@ -1721,7 +1788,11 @@ sb_draw_shield_num(int shield)
 	gr_printf((shield>99)?SB_SHIELD_NUM_X:((shield>9)?SB_SHIELD_NUM_X+2:SB_SHIELD_NUM_X+4),SB_SHIELD_NUM_Y,"%d",shield);
 }
 
+#if defined(MACOS)
+void sb_draw_shield_bar(int shield)
+#else
 sb_draw_shield_bar(int shield)
+#endif
 {
 	int bm_num = shield>=100?9:(shield / 10);
 
@@ -1732,7 +1803,11 @@ sb_draw_shield_bar(int shield)
 
 }
 
+#if defined(MACOS)
+void sb_draw_keys()
+#else
 sb_draw_keys()
+#endif
 {
 	grs_bitmap * bm;
 	int flags = Players[Player_num].flags;
@@ -1781,6 +1856,28 @@ void draw_invulnerable_ship()
 		draw_shield_bar(f2ir(Players[Player_num].shields));
 }
 
+#if defined(MACOS)
+#ifdef HOSTAGE_FACES
+void draw_hostage_gauge()
+{
+	int drew;
+
+	gr_set_current_canvas(Canv_game_offscrn);
+
+	drew = do_hostage_effects();
+
+	if (drew) {
+		int boxofs = (Cockpit_mode==CM_STATUS_BAR)?2:0;
+
+		gr_set_current_canvas(Canv_game);
+		copy_gauge_box(&gauge_boxes[boxofs+1],&Canv_game_offscrn->cv_bitmap);
+
+		old_weapon[1][VR_current_page] = old_ammo_count[1][VR_current_page] = -1;
+	}
+
+}
+#endif
+#else
 #ifdef HOSTAGE_FACES
 draw_hostage_gauge()
 {
@@ -1801,6 +1898,7 @@ draw_hostage_gauge()
 
 }
 #endif
+#endif
 
 extern int Missile_gun;
 extern int allowed_to_fire_laser(void);
@@ -1819,7 +1917,11 @@ rgb player_rgb[] = {
 
 
 //draw the reticle
+#if defined(MACOS)
+void show_reticle(int force_big_one)
+#else
 show_reticle(int force_big_one)
+#endif
 {
 	int x,y;
 	int laser_ready,missile_ready,laser_ammo,missile_ammo;
@@ -1937,6 +2039,133 @@ show_reticle(int force_big_one)
 #endif
 }
 
+#if defined(MACOS)
+#ifdef NETWORK
+void hud_show_kill_list()
+{
+	int n_players,player_list[MAX_NUM_NET_PLAYERS];
+	int n_left,i,x0,x1,y,save_y,fth;
+
+	if (Show_kill_list_timer > 0)
+	{
+		Show_kill_list_timer -= FrameTime;
+		if (Show_kill_list_timer < 0)
+			Show_kill_list = 0;
+	}
+	
+#ifdef SHAREWARE
+	if (Game_mode & GM_MULTI_COOP)
+	{
+		Show_kill_list = 0;
+		return;
+	}
+#endif
+
+	gr_set_curfont( GAME_FONT );
+
+	n_players = multi_get_kill_list(player_list);
+
+	if (Show_kill_list == 2)
+		n_players = 2;
+
+	if (n_players <= 4)
+		n_left = n_players;
+	else
+		n_left = (n_players+1)/2;
+
+	//If font size changes, this code might not work right anymore 
+	Assert(GAME_FONT->ft_h==5 && GAME_FONT->ft_w==7);
+
+	fth = GAME_FONT->ft_h;
+
+	x0 = 1; x1 = 43;
+
+#ifndef SHAREWARE
+	if (Game_mode & GM_MULTI_COOP)
+		x1 = 31;
+#endif
+
+	save_y = y = grd_curcanv->cv_h - n_left*(fth+1);
+
+	if (Cockpit_mode == CM_FULL_COCKPIT) {
+		save_y = y -= 6;
+#ifndef SHAREWARE
+		if (Game_mode & GM_MULTI_COOP)
+			x1 = 33;
+		else
+#endif
+			x1 = 43;
+	}
+
+	for (i=0;i<n_players;i++) {
+		int player_num;
+		char name[9];
+		int sw,sh,aw;
+
+		if (i==n_left) {
+			if (Cockpit_mode == CM_FULL_COCKPIT)
+				x0 = grd_curcanv->cv_w - 53;
+			else
+				x0 = grd_curcanv->cv_w - 60;
+#ifndef SHAREWARE
+			if (Game_mode & GM_MULTI_COOP)
+				x1 = grd_curcanv->cv_w - 27;
+			else
+#endif
+				x1 = grd_curcanv->cv_w - 15;
+			y = save_y;
+		}
+	
+		if (Show_kill_list == 2)
+			player_num = i;
+		else
+			player_num = player_list[i];
+
+		if (Show_kill_list == 1)
+		{
+			int color;
+
+			if (Players[player_num].connected != 1)
+				gr_set_fontcolor(gr_getcolor(12, 12, 12), -1);
+			else if (Game_mode & GM_TEAM) {
+				color = get_team(player_num);
+				gr_set_fontcolor(gr_getcolor(player_rgb[color].r,player_rgb[color].g,player_rgb[color].b),-1 );
+			}
+			else {
+				color = player_num;
+				gr_set_fontcolor(gr_getcolor(player_rgb[color].r,player_rgb[color].g,player_rgb[color].b),-1 );
+			}
+		}	
+
+		else 
+		{
+			gr_set_fontcolor(gr_getcolor(player_rgb[player_num].r,player_rgb[player_num].g,player_rgb[player_num].b),-1 );
+		}
+
+		if (Show_kill_list == 2)
+			strcpy(name, Netgame.team_name[i]);
+		else
+			strcpy(name,Players[player_num].callsign);	// Note link to above if!!
+		gr_get_string_size(name,&sw,&sh,&aw);
+		while (sw > (x1-x0-3)) {
+			name[strlen(name)-1]=0;
+			gr_get_string_size(name,&sw,&sh,&aw);
+		}
+		gr_printf(x0,y,"%s",name);
+		if (Show_kill_list == 2)	
+			gr_printf(x1,y,"%3d",team_kills[i]);
+#ifndef SHAREWARE
+		else if (Game_mode & GM_MULTI_COOP)
+			gr_printf(x1,y,"%-6d",Players[player_num].score);
+#endif
+		else
+			gr_printf(x1,y,"%3d",Players[player_num].net_kills_total);
+		y += fth+1;
+
+	}
+}
+#endif
+#else
 #ifdef NETWORK
 hud_show_kill_list()
 {
@@ -2062,6 +2291,7 @@ hud_show_kill_list()
 	}
 }
 #endif
+#endif
 
 //draw all the things on the HUD
 void draw_hud()
@@ -2081,9 +2311,17 @@ void draw_hud()
 		if (Cockpit_mode==CM_FULL_SCREEN) {
 			hud_show_energy();
 			hud_show_shield();
+#if defined(MACOS)
+			#ifndef SHAREWARE
 			hud_show_weapons();
 			hud_show_keys();
 			hud_show_cloak_invuln();
+			#endif
+#else
+			hud_show_weapons();
+			hud_show_keys();
+			hud_show_cloak_invuln();
+#endif
 
 			if ( ( Newdemo_state==ND_STATE_RECORDING ) && ( Players[Player_num].flags != old_flags[VR_current_page] )) {
 				newdemo_record_player_flags(old_flags[VR_current_page], Players[Player_num].flags);
@@ -2279,5 +2517,4 @@ void update_laser_weapon_info(void)
 	if (old_weapon[0][VR_current_page] == 0)
 		old_weapon[0][VR_current_page] = -1;
 }
-
 

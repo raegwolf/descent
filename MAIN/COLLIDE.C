@@ -403,15 +403,29 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+//#pragma off (unreferenced)
+//static char rcsid[] = "$Id: collide.c 2.5 1995/07/26 12:07:46 john Exp $";
+//#pragma on (unreferenced)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: collide.c 2.5 1995/07/26 12:07:46 john Exp $";
 #pragma on (unreferenced)
+#endif
 
+#if defined(MACOS)
+//#pragma off (unreferenced)	//for all the standard-tempate rountines
+#else
 #pragma off (unreferenced)	//for all the standard-tempate rountines
+#endif
 
 #include <string.h>	// for memset
 #include <stdlib.h>
 #include <stdio.h>
+#if defined(MACOS)
+#include "psrand.h"
+#else
+#endif
 
 #include "rle.h"
 #include "inferno.h"
@@ -465,6 +479,11 @@ static char rcsid[] = "$Id: collide.c 2.5 1995/07/26 12:07:46 john Exp $";
 
 #include "collide.h"
 
+#if defined(MACOS)
+static inline int min(int a, int b) { return a < b ? a : b; }
+
+#else
+#endif
 int Ugly_robot_cheat = 0;
 int Ugly_robot_texture = 0;
 
@@ -514,7 +533,11 @@ int apply_damage_to_clutter(object *clutter, fix damage)
 
 
 //given the specified force, apply damage from that force to an object
+#if defined(MACOS)
+void apply_force_damage(object *obj,fix force,object *other_obj)
+#else
 apply_force_damage(object *obj,fix force,object *other_obj)
+#endif
 {
 	int	result;
 	fix damage;
@@ -578,7 +601,11 @@ void bump_this_object(object *objp, object *other_objp, vms_vector *force, int d
 {
 	fix force_mag;
 
+#if defined(MACOS)
+	if (! (objp->mtype.phys_info.flags & PF_PERSISTENT)) {
+#else
 	if (! (objp->mtype.phys_info.flags & PF_PERSISTENT))
+#endif
 		if (objp->type == OBJ_PLAYER) {
 			vms_vector force2;
 			force2.x = force->x/4;
@@ -604,6 +631,10 @@ void bump_this_object(object *objp, object *other_objp, vms_vector *force, int d
 				}
 			}
 		}
+#if defined(MACOS)
+	}
+#else
+#endif
 }
 
 //	-----------------------------------------------------------------------------
@@ -612,7 +643,11 @@ void bump_this_object(object *objp, object *other_objp, vms_vector *force, int d
 //the collision.
 void bump_two_objects(object *obj0,object *obj1,int damage_flag)
 {
+#if defined(MACOS)
+	vms_vector	force;
+#else
 	vms_vector	dv, force;
+#endif
 	object		*t=NULL;
 
 	if (obj0->movement_type != MT_PHYSICS)
@@ -698,7 +733,11 @@ void collide_weapon_and_wall( object * weapon, fix hitspeed, short hitseg, short
 void collide_debris_and_wall( object * debris, fix hitspeed, short hitseg, short hitwall, vms_vector * hitpt);
 
 //this gets called when an object is scraping along the wall
+#if defined(MACOS)
+void scrape_object_on_wall(object *obj, short hitseg, short hitside, vms_vector * hitpt )
+#else
 scrape_object_on_wall(object *obj, short hitseg, short hitside, vms_vector * hitpt )
+#endif
 {
 	switch (obj->type) {
 
@@ -733,8 +772,13 @@ scrape_object_on_wall(object *obj, short hitseg, short hitside, vms_vector * hit
 					vm_vec_normalize_quick(&hit_dir);
 					bump_one_object(obj, &hit_dir, F1_0*8);
 		
+#if defined(MACOS)
+					obj->mtype.phys_info.rotvel.x = (psrand() - 16384)/2;
+					obj->mtype.phys_info.rotvel.z = (psrand() - 16384)/2;
+#else
 					obj->mtype.phys_info.rotvel.x = (rand() - 16384)/2;
 					obj->mtype.phys_info.rotvel.z = (rand() - 16384)/2;
+#endif
 		
 				} else {
 					//what scrape sound
@@ -1073,8 +1117,11 @@ void collide_robot_and_player( object * robot, object * player, vms_vector *coll
 void net_destroy_controlcen(object *controlcen)
 {
 	if (Fuelcen_control_center_destroyed != 1) {
+#if defined(MACOS)
+#else
 		int i;
 
+#endif
 		do_controlcen_destroyed_stuff(controlcen);
 
 		if ((controlcen != NULL) && !(controlcen->flags&(OF_EXPLODING|OF_DESTROYED))) {
@@ -1122,8 +1169,11 @@ void apply_damage_to_controlcen(object *controlcen, fix damage, short who)
 		controlcen->shields -= damage;
 
 	if ( (controlcen->shields < 0) && !(controlcen->flags&(OF_EXPLODING|OF_DESTROYED)) ) {
+#if defined(MACOS)
+#else
 		int i;
 
+#endif
 		do_controlcen_destroyed_stuff(controlcen);
 
 		#ifdef NETWORK
@@ -1455,6 +1505,15 @@ void drop_player_eggs(object *player)
 
 		// Seed the random number generator so in net play the eggs will always
 		// drop the same way
+#if defined(MACOS)
+		#ifdef NETWORK
+		if (Game_mode & GM_MULTI) 
+		{
+			Net_create_loc = 0;
+			pssrand(5483L);
+		}
+		#endif
+#else
 		#ifdef NETWORK
 		if (Game_mode & GM_MULTI) 
 		{
@@ -1462,6 +1521,7 @@ void drop_player_eggs(object *player)
 			srand(5483L);
 		}
 		#endif
+#endif
 
 		//	If the player dies and he has powerful lasers, create the powerups here.
 
@@ -1601,11 +1661,19 @@ void collide_player_and_weapon( object * player, object * weapon, vms_vector *co
 
 	damage = fixmul(damage, weapon->ctype.laser_info.multiplier);
 
+#if defined(MACOS)
+	if (weapon->mtype.phys_info.flags & PF_PERSISTENT) {
+#else
 	if (weapon->mtype.phys_info.flags & PF_PERSISTENT)
+#endif
 		if (weapon->ctype.laser_info.last_hitobj == player-Objects)
 			return;
 		else
 			weapon->ctype.laser_info.last_hitobj = player-Objects;
+#if defined(MACOS)
+	}
+#else
+#endif
 
 	if (player->id == Player_num)
 	{
@@ -1870,7 +1938,11 @@ void collide_weapon_and_debris( object * weapon, object * debris, vms_vector *co
 //##	return; 
 //##}
 
+#if defined(MACOS)
+//#pragma on (unreferenced)					// No warnings for unreferenced vars, eh?
+#else
 #pragma on (unreferenced)					// No warnings for unreferenced vars, eh?
+#endif
 
 #define COLLISION_OF(a,b) (((a)<<8) + (b))
 
@@ -2056,7 +2128,4 @@ void collide_object_with_wall( object * A, fix hitspeed, short hitseg, short hit
 		Error( "Unhandled object type hit wall in collide.c\n" );
 	}
 }
-
-
-
 

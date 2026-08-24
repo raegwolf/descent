@@ -62,6 +62,8 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
  */
 
 
+#if defined(MACOS)
+#else
 #pragma off (unreferenced)
 static char rcsid[] = "$Id: scale.c 1.12 1995/03/14 15:14:11 john Exp $";
 #pragma on (unreferenced)
@@ -74,14 +76,38 @@ static char rcsid[] = "$Id: scale.c 1.12 1995/03/14 15:14:11 john Exp $";
 
 #include "mono.h"
 #include "fix.h"
+#endif
 #include "gr.h"
+#if defined(MACOS)
+#include "grdef.h"
+#else
 #include "error.h"
+#endif
 #include "rle.h"
 
+#if defined(MACOS)
+#define TRANSPARENCY_COLOR 255
+#else
 #define TRANSPARENCY_COLOR 255;
+#endif
 
+#if defined(MACOS)
+// John's new stuff below here....
+#else
 static int Transparency_color = TRANSPARENCY_COLOR;
+#endif
 
+#if defined(MACOS)
+int scale_error_term;
+int scale_initial_pixel_count;
+int scale_adj_up;
+int scale_adj_down;
+int scale_final_pixel_count;
+int scale_ydelta_minus_1;
+int scale_whole_step;
+ubyte * scale_source_ptr;
+ubyte * scale_dest_ptr;
+#else
 extern char scale_trans_color;
 extern int scale_error_term;
 extern int scale_initial_pixel_count;
@@ -93,29 +119,78 @@ extern int scale_whole_step;
 extern ubyte * scale_source_ptr;
 extern ubyte * scale_dest_ptr;
 extern void rls_stretch_scanline_asm();
+#endif
 
+#if defined(MACOS)
+#else
 extern void scale_do_cc_scanline();
 extern void rls_do_cc_setup_asm();
+#endif
 
+#if defined(MACOS)
+ubyte scale_rle_data[640];
+#else
 void rls_stretch_scanline( char * source, char * dest, int XDelta, int YDelta );
 void rls_stretch_scanline_setup( int XDelta, int YDelta );
+#endif
 
+#if defined(MACOS)
+void scale_up_bitmap(grs_bitmap *source_bmp, grs_bitmap *dest_bmp, int x0, int y0, int x1, int y1, fix u0, fix v0,  fix u1, fix v1  );
+void scale_up_bitmap_rle(grs_bitmap *source_bmp, grs_bitmap *dest_bmp, int x0, int y0, int x1, int y1, fix u0, fix v0,  fix u1, fix v1  );
+void rls_stretch_scanline_setup( int XDelta, int YDelta );
+void rls_stretch_scanline(void);
+#else
 void scale_row_c( ubyte * sbits, ubyte * dbits, int width, fix u, fix du )
 {
 	int i;
 	ubyte c;
+#endif
 
+#if defined(MACOS)
+#else
 	for ( i=0; i<width; i++ )	{
 		c = sbits[ f2i(u) ];
+#endif
 
+#if defined(MACOS)
+void decode_row( grs_bitmap * bmp, int y )
+{
+	int i, offset=4+bmp->bm_h;
+	
+	for (i=0; i<y; i++ )
+		offset += bmp->bm_data[4+i];
+	gr_rle_decode( &bmp->bm_data[offset], scale_rle_data );
+}
+
+void scale_up_bitmap(grs_bitmap *source_bmp, grs_bitmap *dest_bmp, int x0, int y0, int x1, int y1, fix u0, fix v0,  fix u1, fix v1  )
+{
+	fix dv, v;
+	int y;
+
+	dv = (v1-v0) / (y1-y0);
+		
+	rls_stretch_scanline_setup( (int)(x1-x0), f2i(u1)-f2i(u0) );
+	if ( scale_ydelta_minus_1 < 1 ) return;
+
+	v = v0;
+
+	for (y=y0; y<=y1; y++ )			{
+		scale_source_ptr = &source_bmp->bm_data[source_bmp->bm_rowsize*f2i(v)+f2i(u0)];
+		scale_dest_ptr = &dest_bmp->bm_data[dest_bmp->bm_rowsize*y+x0];
+		rls_stretch_scanline();
+		v += dv;
+#else
 		if ( c != Transparency_color )
 			*dbits = c;
 			
 		dbits++;
 		u += du;
+#endif
 	}
 }
 
+#if defined(MACOS)
+#else
 // esi, edi = source, dest	
 // ecx = width
 // ebx = u
@@ -144,11 +219,259 @@ void scale_row_asm( ubyte * sbits, ubyte * dbits, int width, fix u, fix du );
 "				inc	edi				" \
 "				dec	ecx				" \
 "				jne	newpixel1		"
+#endif
 
 
+#if defined(MACOS)
+
+void scale_up_bitmap_rle(grs_bitmap *source_bmp, grs_bitmap *dest_bmp, int x0, int y0, int x1, int y1, fix u0, fix v0,  fix u1, fix v1  )
+{
+	fix dv, v;
+	int y, last_row = -1;
+
+	dv = (v1-v0) / (y1-y0);
+		
+	rls_stretch_scanline_setup( (int)(x1-x0), f2i(u1)-f2i(u0) );
+	if ( scale_ydelta_minus_1 < 1 ) return;
+
+	v = v0;
+
+	for (y=y0; y<=y1; y++ )			{
+		if ( f2i(v) != last_row )	{
+			last_row = f2i(v);
+			decode_row( source_bmp, last_row );
+		}
+		scale_source_ptr = &scale_rle_data[f2i(u0)];
+		scale_dest_ptr = &dest_bmp->bm_data[dest_bmp->bm_rowsize*y+x0];
+		rls_stretch_scanline();
+		v += dv;
+	}
+}
+
+void rls_stretch_scanline_setup( int XDelta, int YDelta )
+{
+	  scale_ydelta_minus_1 = YDelta - 1;
+
+      /* X major line */
+      /* Minimum # of pixels in a run in this line */
+      scale_whole_step = XDelta / YDelta;
+
+      /* Error term adjust each time Y steps by 1; used to tell when one
+         extra pixel should be drawn as part of a run, to account for
+         fractional steps along the X axis per 1-pixel steps along Y */
+      scale_adj_up = (XDelta % YDelta) * 2;
+
+      /* Error term adjust when the error term turns over, used to factor
+         out the X step made at that time */
+      scale_adj_down = YDelta * 2;
+
+      /* Initial error term; reflects an initial step of 0.5 along the Y
+         axis */
+      scale_error_term = (XDelta % YDelta) - (YDelta * 2);
+
+      /* The initial and last runs are partial, because Y advances only 0.5
+         for these runs, rather than 1. Divide one full run, plus the
+         initial pixel, between the initial and last runs */
+      scale_initial_pixel_count = (scale_whole_step / 2) + 1;
+      scale_final_pixel_count = scale_initial_pixel_count;
+
+      /* If the basic run length is even and there's no fractional
+         advance, we have one pixel that could go to either the initial
+         or last partial run, which we'll arbitrarily allocate to the
+         last run */
+      if ((scale_adj_up == 0) && ((scale_whole_step & 0x01) == 0))
+      {
+         scale_initial_pixel_count--;
+      }
+     /* If there're an odd number of pixels per run, we have 1 pixel that can't
+     be allocated to either the initial or last partial run, so we'll add 0.5
+     to error term so this pixel will be handled by the normal full-run loop */
+      if ((scale_whole_step & 0x01) != 0)
+      {
+         scale_error_term += YDelta;
+      }
+
+}
+
+void rls_stretch_scanline()
+{
+	ubyte	c;
+	int i, j, len, ErrorTerm, x;
+
+	// Setup initial variables
+	ErrorTerm = scale_error_term;
+
+	// Draw the first, partial run of pixels
+
+	c = *scale_source_ptr++;
+	if ( c != TRANSPARENCY_COLOR )	{
+		for (i=0; i<scale_initial_pixel_count; i++ )
+			*scale_dest_ptr++ = c;
+	} else {
+		scale_dest_ptr += scale_initial_pixel_count;
+	}
+
+	// Draw all full runs 
+
+	for (j=0; j<scale_ydelta_minus_1; j++)	{
+		len = scale_whole_step;		// run is at least this long
+
+ 		// Advance the error term and add an extra pixel if the error term so indicates
+		if ((ErrorTerm += scale_adj_up) > 0)	{
+			len++;
+			ErrorTerm -= scale_adj_down;   // reset the error term
+		}
+         
+		// Draw this run o' pixels
+		c = *scale_source_ptr++;
+		if ( c != TRANSPARENCY_COLOR )	{
+
+			if (len > 3) {			
+				while ((intptr_t)(scale_dest_ptr) & 0x3) { *scale_dest_ptr++ = c; len--; };
+				if (len >= 4) {
+					x = (c << 24) | (c << 16) | (c << 8) | c;
+					while (len > 4) { *((int *)scale_dest_ptr) = x; scale_dest_ptr += 4; len -= 4; };
+				}
+				while (len > 0) { *scale_dest_ptr++ = c; len--; };
+			} else {
+				for (i=0; i<len; i++ )
+					*scale_dest_ptr++ = c;
+			}
+		} else {
+			scale_dest_ptr += len;
+		}
+	}
+
+	// Draw the final run of pixels
+	c = *scale_source_ptr++;
+	if ( c != TRANSPARENCY_COLOR )	{
+		for (i=0; i<scale_final_pixel_count; i++ )
+			*scale_dest_ptr++ = c;
+	} else {
+		scale_dest_ptr += scale_final_pixel_count;
+	}
+}
+
+// old stuff here...
+
+void scale_bitmap_c(grs_bitmap *source_bmp, grs_bitmap *dest_bmp, int x0, int y0, int x1, int y1, fix u0, fix v0,  fix u1, fix v1  )
+{
+	fix u, v, du, dv;
+	int x, y;
+	ubyte * sbits, * dbits;
+
+	du = (u1-u0) / (x1-x0);
+	dv = (v1-v0) / (y1-y0);
+
+	v = v0;
+
+	for (y=y0; y<=y1; y++ )			{
+		sbits = &source_bmp->bm_data[source_bmp->bm_rowsize*f2i(v)];
+		dbits = &dest_bmp->bm_data[dest_bmp->bm_rowsize*y+x0];
+		u = u0; 
+		v += dv;
+		for (x=x0; x<=x1; x++ )			{
+			*dbits++ = sbits[ u >> 16 ];
+			u += du;
+		}
+	}
+}
+
+void scale_row_asm_transparent( ubyte * sbits, ubyte * dbits, int width, fix u, fix du )
+{
+#if 0
+	int i;
+	ubyte c;
+
+	for (i=0; i<width; i++ )	{
+		c = sbits[ u >> 16 ];
+		if ( c!=TRANSPARENCY_COLOR) 
+			*dbits = c;
+		dbits++;
+		u += du;
+	}
+#endif
+	int i;
+	ubyte c;
+	ubyte *dbits_end = &dbits[width-1];
+
+	if ( du < F1_0 )	{
+		// Scaling up.
+		fix next_u;
+		int next_u_int;
+
+		next_u_int = f2i(u)+1;
+		c = sbits[ next_u_int ];
+		next_u = i2f(next_u_int);
+		if ( c != TRANSPARENCY_COLOR ) goto NonTransparent;
+
+Transparent:
+		while (1)	{
+			dbits++;
+			if ( dbits > dbits_end ) return;
+			u += du;
+			if ( u > next_u )	{
+				next_u_int = f2i(u)+1;
+				c = sbits[ next_u_int ];
+				next_u = i2f(next_u_int);
+				if ( c != TRANSPARENCY_COLOR ) goto NonTransparent;
+			}
+		}
+		return;
+
+NonTransparent:
+		while (1)	{
+			*dbits++ = c;
+			if ( dbits > dbits_end ) return;
+			u += du;
+			if ( u > next_u )	{
+				next_u_int = f2i(u)+1;
+				c = sbits[ next_u_int ];
+				next_u = i2f(next_u_int);
+				if ( c == TRANSPARENCY_COLOR ) goto Transparent;
+			}
+		}
+		return;
+
+
+
+	} else {
+		for ( i=0; i<width; i++ )	{
+			c = sbits[ f2i(u) ];
+	
+			if ( c != TRANSPARENCY_COLOR )
+				*dbits = c;
+				
+			dbits++;
+			u += du;
+		}
+	}
+}
+
+void scale_bitmap_c_rle(grs_bitmap *source_bmp, grs_bitmap *dest_bmp, int x0, int y0, int x1, int y1, fix u0, fix v0,  fix u1, fix v1  )
+{
+	fix du, dv, v;
+	int y, last_row=-1;
+
+	du = (u1-u0) / (x1-x0);
+	dv = (v1-v0) / (y1-y0);
+
+	v = v0;
+
+	for (y=y0; y<=y1; y++ )			{
+		if ( f2i(v) != last_row )	{
+			last_row = f2i(v);
+			decode_row( source_bmp, last_row );
+		}
+		scale_row_asm_transparent( scale_rle_data, &dest_bmp->bm_data[dest_bmp->bm_rowsize*y+x0], x1-x0+1, u0, du );
+		v += dv;
+	}
+}
+#else
 void rep_movsb( ubyte * sbits, ubyte * dbits, int width );
 #pragma aux rep_movsb parm [esi] [edi] [ecx] modify exact [esi edi ecx] = \
 "rep movsb"
+#endif
 
 #define FIND_SCALED_NUM(x,x0,x1,y0,y1) (fixmuldiv((x)-(x0),(y1)-(y0),(x1)-(x0))+(y0))
 
@@ -215,6 +538,19 @@ void scale_bitmap(grs_bitmap *bp, grs_point *vertbuf )
 	if (dx1<=dx0) return;
 	if (dy1<=dy0) return;
 
+#if defined(MACOS)
+//	Assert( dx0>=0 );
+//	Assert( dy0>=0 );
+//	Assert( dx1<dbp->bm_w );
+//	Assert( dy1<dbp->bm_h );
+//	Assert( f2i(u0)<=f2i(u1) );
+//	Assert( f2i(v0)<=f2i(v1) );
+//	Assert( f2i(u0)>=0 );
+//	Assert( f2i(v0)>=0 );
+//	Assert( u1<i2f(bp->bm_w) );
+//	Assert( v1<i2f(bp->bm_h) );
+//mprintf( 0, "(%.2f,%.2f) to (%.2f,%.2f) using (%.2f,%.2f) to (%.2f,%.2f)\n", f2fl(clipped_x0), f2fl(clipped_y0), f2fl(clipped_x1), f2fl(clipped_y1), f2fl(clipped_u0), f2fl(clipped_v0), f2fl(clipped_u1), f2fl(clipped_v1) );
+#else
 	Assert( dx0>=0 );
 	Assert( dy0>=0 );
 	Assert( dx1<dbp->bm_w );
@@ -227,21 +563,49 @@ void scale_bitmap(grs_bitmap *bp, grs_point *vertbuf )
 	Assert( v1<i2f(bp->bm_h) );
 
 	//mprintf( 0, "(%.2f,%.2f) to (%.2f,%.2f) using (%.2f,%.2f) to (%.2f,%.2f)\n", f2fl(clipped_x0), f2fl(clipped_y0), f2fl(clipped_x1), f2fl(clipped_y1), f2fl(clipped_u0), f2fl(clipped_v0), f2fl(clipped_u1), f2fl(clipped_v1) );
+#endif
 
 	dtemp = f2i(clipped_u1)-f2i(clipped_u0);
 
+#if defined(MACOS)
+#if 0
+	if ( bp->bm_flags & BM_FLAG_RLE )
+		scale_bitmap_c_rle(bp, dbp, dx0, dy0, dx1, dy1, clipped_u0, clipped_v0, clipped_u1, clipped_v1  );
+	else
+		scale_bitmap_c(bp, dbp, dx0, dy0, dx1, dy1, clipped_u0, clipped_v0, clipped_u1, clipped_v1  );
+#endif
+#else
+#endif
 	if ( bp->bm_flags & BM_FLAG_RLE )	{
 		if ( (dtemp < (f2i(clipped_x1)-f2i(clipped_x0))) && (dtemp>0) )
+#if defined(MACOS)
+			scale_up_bitmap_rle(bp, dbp, dx0, dy0, dx1, dy1, clipped_u0, clipped_v0, clipped_u1, clipped_v1  );
+#else
 			scale_bitmap_cc_asm_rle(bp, dbp, dx0, dy0, dx1, dy1, clipped_u0, clipped_v0, clipped_u1, clipped_v1  );
+#endif
 		else
+#if defined(MACOS)
+			scale_bitmap_c_rle(bp, dbp, dx0, dy0, dx1, dy1, clipped_u0, clipped_v0, clipped_u1, clipped_v1  );
+#else
 			scale_bitmap_asm_rle(bp, dbp, dx0, dy0, dx1, dy1, clipped_u0, clipped_v0, clipped_u1, clipped_v1  );
+#endif
 	} else {
 		if ( (dtemp < (f2i(clipped_x1)-f2i(clipped_x0))) && (dtemp>0) )
+#if defined(MACOS)
+			scale_up_bitmap(bp, dbp, dx0, dy0, dx1, dy1, clipped_u0, clipped_v0, clipped_u1, clipped_v1  );
+#else
 			scale_bitmap_cc_asm(bp, dbp, dx0, dy0, dx1, dy1, clipped_u0, clipped_v0, clipped_u1, clipped_v1  );
+#endif
 		else
+#if defined(MACOS)
+			scale_bitmap_c(bp, dbp, dx0, dy0, dx1, dy1, clipped_u0, clipped_v0, clipped_u1, clipped_v1  );
+#else
 			scale_bitmap_asm(bp, dbp, dx0, dy0, dx1, dy1, clipped_u0, clipped_v0, clipped_u1, clipped_v1  );
+#endif
 	}
 }
+#if defined(MACOS)
+#else
 
 
 void scale_bitmap_c(grs_bitmap *source_bmp, grs_bitmap *dest_bmp, int x0, int y0, int x1, int y1, fix u0, fix v0,  fix u1, fix v1  )
@@ -504,4 +868,5 @@ void rls_stretch_scanline_setup( int XDelta, int YDelta )
       }
 
 }
+#endif
 
