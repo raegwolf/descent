@@ -258,7 +258,11 @@ typedef struct {
 
 #define	MAX_POINT_SEGS	2500
 
+#if defined(ARDUINO)
+extern	point_seg	*Point_segs;
+#else
 extern	point_seg	Point_segs[MAX_POINT_SEGS];
+#endif
 extern	point_seg	*Point_segs_free_ptr;
 extern	int			Overall_agitation;
 

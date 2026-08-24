@@ -251,7 +251,11 @@ extern int Num_tmaps;
 extern int TmapList[MAX_TEXTURES];
 #endif
 
+#if defined(ARDUINO)
+extern tmap_info *TmapInfo;
+#else
 extern tmap_info TmapInfo[MAX_TEXTURES];
+#endif
 
 //for each model, a model number for dying & dead variants, or -1 if none
 extern int Dying_modelnums[];

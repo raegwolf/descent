@@ -38,7 +38,10 @@ typedef signed char byte;
 typedef unsigned char ubyte;
 typedef unsigned short ushort;
 typedef unsigned int uint;
-#if defined(MACOS)
+#if defined(ARDUINO)
+/* ESP32's ABI defines unsigned long as exactly 32 bits. */
+typedef unsigned long ulong;
+#elif defined(MACOS)
 /* DOS and its data files define ulong as exactly 32 bits. */
 #include <stdint.h>
 typedef uint32_t ulong;

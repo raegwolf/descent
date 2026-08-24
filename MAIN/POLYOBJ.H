@@ -161,7 +161,11 @@ typedef struct polymodel {
 } polymodel;
 
 //array of pointers to polygon objects
+#if defined(ARDUINO)
+extern polymodel *Polygon_models;
+#else
 extern polymodel Polygon_models[];
+#endif
 
 //switch to simpler model when the object has depth 
 //greater than this value times its radius.   
@@ -197,7 +201,11 @@ draw_model_picture(int mn,vms_angvec *orient_angles);
 #define MAX_POLYOBJ_TEXTURES 50
 extern grs_bitmap *texture_list[MAX_POLYOBJ_TEXTURES];
 extern bitmap_index texture_list_index[MAX_POLYOBJ_TEXTURES];
+#if defined(ARDUINO)
+extern g3s_point *robot_points;
+#else
 extern g3s_point robot_points[];
+#endif
 
 #endif
 

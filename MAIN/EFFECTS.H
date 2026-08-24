@@ -105,7 +105,11 @@ typedef struct eclip {
 } eclip;
 
 extern int Num_effects;
+#if defined(ARDUINO)
+extern eclip *Effects;
+#else
 extern eclip Effects[MAX_EFFECTS];
+#endif
 
 // Set up special effects.
 extern void init_special_effects(); 

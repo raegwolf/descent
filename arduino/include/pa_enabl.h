@@ -1,0 +1,3 @@
+#ifndef DESCENT_ARDUINO_PA_ENABL_H
+#define DESCENT_ARDUINO_PA_ENABL_H
+#endif

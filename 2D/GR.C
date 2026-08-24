@@ -211,6 +211,148 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "palette.h"
 #include "dpmi.h"
 
+#if defined(ARDUINO)
+
+/*
+ * Arduino/ESP32 graphics boundary.
+ *
+ * The original renderer continues to draw an indexed 320x200 image.  The
+ * Arduino application owns the physical display and converts this buffer at
+ * presentation time.  Keeping that conversion outside the engine preserves
+ * the DOS rendering model and avoids any display-library dependency here.
+ */
+extern void *arduino_alloc_psram(unsigned int size);
+extern void arduino_free_psram(void *buffer);
+extern void arduino_present_indexed(const unsigned char *pixels,
+	const unsigned char *palette, int width, int height);
+
+unsigned char *gr_video_memory = NULL;
+ubyte gr_pal_default[768];
+int gr_installed = 0;
+
+extern ubyte gr_visible_pal[256 * 3];
+
+void gr_sync_display(void)
+{
+	if (gr_video_memory != NULL && grd_curscreen != NULL)
+		arduino_present_indexed(gr_video_memory, gr_visible_pal,
+			grd_curscreen->sc_w, grd_curscreen->sc_h);
+}
+
+int gr_init_A0000(void) { return 0; }
+void video_set_res(int width, int height) { (void)width; (void)height; }
+void gr_set_cellheight(ubyte height) { (void)height; }
+void gr_set_linear(void) {}
+void gr_16_to_256(void) {}
+void gr_turn_screen_off(void) {}
+void gr_turn_screen_on(void) {}
+void gr_set_misc_mode(uint mode) { (void)mode; }
+void gr_set_3dbios_mode(uint mode) { (void)mode; }
+void gr_set_text_25(void) {}
+void gr_set_text_43(void) {}
+void gr_set_text_50(void) {}
+ubyte is_graphics_mode(void) { return 1; }
+void gr_setcursor(ubyte x, ubyte y, ubyte sline, ubyte eline)
+{
+	(void)x; (void)y; (void)sline; (void)eline;
+}
+void gr_getcursor(ubyte *x, ubyte *y, ubyte *sline, ubyte *eline)
+{
+	*x = *y = *sline = *eline = 0;
+}
+int gr_save_mode(void) { return 0; }
+int isvga(void) { return 1; }
+void gr_restore_mode(void) {}
+
+int gr_close(void)
+{
+	if (grd_curscreen != NULL) {
+		free(grd_curscreen);
+		grd_curscreen = NULL;
+	}
+	if (gr_video_memory != NULL) {
+		arduino_free_psram(gr_video_memory);
+		gr_video_memory = NULL;
+	}
+	gr_installed = 0;
+	return 0;
+}
+
+int gr_vesa_setmode(int mode) { (void)mode; return 11; }
+
+int gr_set_mode(int mode)
+{
+	unsigned int height = mode == SM_320x400U ? 400 : 200;
+
+	if (grd_curscreen == NULL || gr_video_memory == NULL)
+		return 10;
+
+	video_set_res(320, height);
+	gr_palette_clear();
+	memset(grd_curscreen, 0, sizeof(grs_screen));
+	grd_curscreen->sc_mode = mode;
+	grd_curscreen->sc_w = 320;
+	grd_curscreen->sc_h = height;
+	grd_curscreen->sc_aspect = fixdiv(320 * 3, height * 4);
+	grd_curscreen->sc_canvas.cv_bitmap.bm_w = 320;
+	grd_curscreen->sc_canvas.cv_bitmap.bm_h = height;
+	grd_curscreen->sc_canvas.cv_bitmap.bm_rowsize = 320;
+	grd_curscreen->sc_canvas.cv_bitmap.bm_type = BM_LINEAR;
+	grd_curscreen->sc_canvas.cv_bitmap.bm_data = gr_video_memory;
+	gr_set_current_canvas(NULL);
+	return 0;
+}
+
+int gr_init(int mode)
+{
+	int retcode;
+
+	if (gr_installed)
+		return 1;
+	gr_video_memory = (unsigned char *)arduino_alloc_psram(320U * 400U);
+	if (gr_video_memory == NULL)
+		return 10;
+	grd_curscreen = (grs_screen *)malloc(sizeof(grs_screen));
+	if (grd_curscreen == NULL) {
+		arduino_free_psram(gr_video_memory);
+		gr_video_memory = NULL;
+		return 10;
+	}
+	memset(grd_curscreen, 0, sizeof(grs_screen));
+	memset(gr_video_memory, 0, 320U * 400U);
+	gr_palette_clear();
+	retcode = gr_set_mode(mode);
+	if (retcode != 0) {
+		gr_close();
+		return retcode;
+	}
+	grd_curscreen->sc_canvas.cv_color = 0;
+	grd_curscreen->sc_canvas.cv_drawmode = 0;
+	grd_curscreen->sc_canvas.cv_font = NULL;
+	grd_curscreen->sc_canvas.cv_font_fg_color = 0;
+	grd_curscreen->sc_canvas.cv_font_bg_color = 0;
+	gr_set_current_canvas(&grd_curscreen->sc_canvas);
+	gr_installed = 1;
+	return 0;
+}
+
+int gr_mode13_checkmode(void) { return 0; }
+
+int gr_check_mode(int mode)
+{
+	switch (mode) {
+	case SM_ORIGINAL:
+	case SM_320x200C:
+	case SM_320x200U:
+	case SM_320x400U:
+		return 0;
+	default:
+		return 11;
+	}
+}
+
+#else
+
 unsigned char * gr_video_memory = (unsigned char *)0xA0000;
 
 char gr_pal_default[768];
@@ -723,4 +865,6 @@ int gr_check_mode(int mode)
 	}
 	return 11;
 }
+
+#endif /* ARDUINO */
 

@@ -111,8 +111,16 @@ void piggy_load_level_data();
 #define MAX_SOUND_FILES		MAX_SOUNDS
 #endif
 
+#if defined(ARDUINO)
+extern digi_sound *GameSounds;
+#else
 extern digi_sound GameSounds[MAX_SOUND_FILES];
+#endif
+#if defined(ARDUINO)
+extern grs_bitmap *GameBitmaps;
+#else
 extern grs_bitmap GameBitmaps[MAX_BITMAP_FILES];
+#endif
 
 void piggy_read_sounds();
 

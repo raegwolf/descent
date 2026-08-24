@@ -108,7 +108,19 @@ int	N_robot_types = 0;
 int	N_robot_joints = 0;
 
 //	Robot stuff
+#if defined(ARDUINO)
+robot_info *Robot_info;
+
+extern void *arduino_alloc_psram(unsigned int size);
+
+int arduino_init_robot_storage(void)
+{
+	Robot_info = (robot_info *)arduino_alloc_psram(sizeof(*Robot_info) * MAX_ROBOT_TYPES);
+	return Robot_info != NULL;
+}
+#else
 robot_info Robot_info[MAX_ROBOT_TYPES];
+#endif
 
 //Big array of joint positions.  All robots index into this array
 

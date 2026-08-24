@@ -146,7 +146,21 @@ static char rcsid[] = "$Id: morph.c 2.1 1995/02/27 18:26:33 john Exp $";
 #include "mono.h"
 #include "bm.h"
 
+#if defined(ARDUINO)
+morph_data *morph_objects;
+#else
 morph_data morph_objects[MAX_MORPH_OBJECTS];
+#endif
+
+#if defined(ARDUINO)
+extern void *arduino_alloc_psram(unsigned int size);
+
+int arduino_init_morph_storage(void)
+{
+	morph_objects = (morph_data *)arduino_alloc_psram(sizeof(*morph_objects) * MAX_MORPH_OBJECTS);
+	return morph_objects != NULL;
+}
+#endif
 
 //returns ptr to data for this object, or NULL if none
 morph_data *find_morph_data(object *obj)

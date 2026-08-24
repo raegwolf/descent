@@ -463,7 +463,11 @@ extern int Object_next_signature;		// The next signature for the next newly crea
 extern ubyte CollisionResult[MAX_OBJECT_TYPES][MAX_OBJECT_TYPES];
 // ie CollisionResult[a][b]==  what happens to a when it collides with b
 
+#if defined(ARDUINO)
+extern object *Objects;
+#else
 extern object Objects[];
+#endif
 extern int Highest_object_index;		//highest objnum
 
 extern char *robot_names[];			//name of each robot
@@ -856,7 +860,11 @@ extern int Object_next_signature;		// The next signature for the next newly crea
 extern ubyte CollisionResult[MAX_OBJECT_TYPES][MAX_OBJECT_TYPES];
 // ie CollisionResult[a][b]==  what happens to a when it collides with b
 
+#if defined(ARDUINO)
+extern object *Objects;
+#else
 extern object Objects[];
+#endif
 extern int Highest_object_index;		//highest objnum
 
 extern char *robot_names[];			//name of each robot

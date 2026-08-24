@@ -414,7 +414,11 @@ static short free_obj_list[MAX_OBJECTS];
 object	Object_minus_one;
 #endif
 
+#if defined(ARDUINO)
+object *Objects;
+#else
 object Objects[MAX_OBJECTS];
+#endif
 int num_objects=0;
 int Highest_object_index=0;
 int Highest_ever_object_index=0;
@@ -429,6 +433,16 @@ int Highest_ever_object_index=0;
 //--unused-- int Num_robot_types=0;
 
 int print_object_info = 0;
+
+#if defined(ARDUINO)
+extern void *arduino_alloc_psram(unsigned int size);
+
+int arduino_init_object_storage(void)
+{
+	Objects = (object *)arduino_alloc_psram(sizeof(*Objects) * MAX_OBJECTS);
+	return Objects != NULL;
+}
+#endif
 //@@int Object_viewer = 0;
 
 //object * Slew_object = NULL;	// Object containing slew object info.

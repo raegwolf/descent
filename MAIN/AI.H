@@ -162,7 +162,11 @@ extern fix	Last_teleport_time;
 extern fix 	Boss_cloak_duration;
 extern int Boss_dying;
 
+#if defined(ARDUINO)
+extern ai_local	*Ai_local_info;
+#else
 extern ai_local	Ai_local_info[MAX_OBJECTS];
+#endif
 extern vms_vector	Believed_player_pos;
 
 extern void move_towards_segment_center(object *objp);

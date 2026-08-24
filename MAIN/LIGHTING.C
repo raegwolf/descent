@@ -154,7 +154,19 @@ int	use_beam;		//flag for beam effect
 
 int	Do_dynamic_light=1;
 
+#if defined(ARDUINO)
+fix	*Dynamic_light;
+
+extern void *arduino_alloc_psram(unsigned int size);
+
+int arduino_init_lighting_storage(void)
+{
+	Dynamic_light = (fix *)arduino_alloc_psram(sizeof(*Dynamic_light) * MAX_VERTICES);
+	return Dynamic_light != NULL;
+}
+#else
 fix	Dynamic_light[MAX_VERTICES];
+#endif
 
 // ----------------------------------------------------------------------------------------------
 void apply_light(fix obj_intensity, int obj_seg, vms_vector *obj_pos, int n_render_vertices, short *render_vertices)

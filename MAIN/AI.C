@@ -366,9 +366,15 @@ int	john_cheats_index_3;		//	LUNACY		lunacy (insane behavior, rookie firing)
 //	---------- John: These variables must be saved as part of gamesave. ----------
 int				Ai_initialized = 0;
 int				Overall_agitation;
+#if defined(ARDUINO)
+ai_local			*Ai_local_info;
+point_seg		*Point_segs;
+point_seg		*Point_segs_free_ptr;
+#else
 ai_local			Ai_local_info[MAX_OBJECTS];
 point_seg		Point_segs[MAX_POINT_SEGS];
 point_seg		*Point_segs_free_ptr = Point_segs;
+#endif
 ai_cloak_info	Ai_cloak_info[MAX_AI_CLOAK_INFO];
 fix				Boss_cloak_start_time = 0;
 fix				Boss_cloak_end_time = 0;
@@ -381,6 +387,18 @@ fix				Gate_interval = F1_0*6;
 fix				Boss_dying_start_time;
 int				Boss_dying, Boss_dying_sound_playing, Boss_hit_this_frame;
 int				Boss_been_hit=0;
+
+#if defined(ARDUINO)
+extern void *arduino_alloc_psram(unsigned int size);
+
+int arduino_init_ai_storage(void)
+{
+	Ai_local_info = (ai_local *)arduino_alloc_psram(sizeof(*Ai_local_info) * MAX_OBJECTS);
+	Point_segs = (point_seg *)arduino_alloc_psram(sizeof(*Point_segs) * MAX_POINT_SEGS);
+	Point_segs_free_ptr = Point_segs;
+	return Ai_local_info != NULL && Point_segs != NULL;
+}
+#endif
 
 
 //	---------- John: End of variables which must be saved as part of gamesave. ----------

@@ -96,7 +96,19 @@ bitmap_index		cockpit_bitmap[N_COCKPIT_BITMAPS];
 
 //---------------- Variables for wall textures ------------------
 int 					Num_tmaps;
+#if defined(ARDUINO)
+tmap_info 			*TmapInfo;
+
+extern void *arduino_alloc_psram(unsigned int size);
+
+int arduino_init_bitmap_storage(void)
+{
+	TmapInfo = (tmap_info *)arduino_alloc_psram(sizeof(*TmapInfo) * MAX_TEXTURES);
+	return TmapInfo != NULL;
+}
+#else
 tmap_info 			TmapInfo[MAX_TEXTURES];
+#endif
 
 //---------------- Variables for object textures ----------------
 

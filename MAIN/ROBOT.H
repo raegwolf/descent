@@ -185,7 +185,11 @@ typedef struct robot_info {
 extern char	Robot_names[MAX_ROBOT_TYPES][ROBOT_NAME_LENGTH];
 
 //the array of robots types
+#if defined(ARDUINO)
+extern robot_info *Robot_info;
+#else
 extern robot_info Robot_info[];			// Robot info for AI system, loaded from bitmaps.tbl.
+#endif
 
 //how many kinds of robots
 extern	int	N_robot_types;		// Number of robot types.  We used to assume this was the same as N_polygon_models.

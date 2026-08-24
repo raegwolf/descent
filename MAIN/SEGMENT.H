@@ -222,8 +222,13 @@ typedef struct {
 } group;
 
 // Globals from mglobal.c
+#if defined(ARDUINO)
+extern	vms_vector	*Vertices;
+extern	segment		*Segments;
+#else
 extern	vms_vector	Vertices[];
 extern	segment		Segments[];
+#endif
 //--repair-- extern	lsegment		Lsegments[];
 extern	int			Num_segments;
 extern	int			Num_vertices;

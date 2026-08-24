@@ -60,7 +60,11 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #define BEAM_CUTOFF	0xa000		//what is out of beam?
 
 extern fix	Beam_brightness;
+#if defined(ARDUINO)
+extern fix	*Dynamic_light;
+#else
 extern fix	Dynamic_light[MAX_VERTICES];
+#endif
 
 extern void set_dynamic_light(void);
 
