@@ -22,8 +22,11 @@ make -C macos run
 The first build downloads the official SDL 3.4.14 macOS framework, verifies
 its SHA-256, and stores it under ignored `macos/.deps/`. The framework and any
 available `resources/descent.hog` and `resources/descent.pig` files are copied
-into the app bundle. A normal launch uses Descent's original pilot selection
-and menu flow.
+into the app bundle. A normal launch ensures that `pilot.plr` exists, loads
+that pilot without showing pilot-selection or creation menus, skips the title
+and Level 1 briefing, then starts a new game on Level 1. Set
+`start_to_new_game` to `0` in `macos/src/main_macos.c` to restore the original
+title, briefing, and main-menu startup flow.
 
 For a headless graphics/asset smoke test:
 
@@ -33,13 +36,12 @@ make -C macos launch-test smoke model-smoke
 
 `launch-test` verifies that a normal startup remains alive instead of exiting
 during initialization. `smoke` starts the real engine with SDL's dummy video
-driver, loads the shareware data, enters
-`function_loop -> DoMenu -> newmenu_do3`, writes the rendered menu frame to
-`/tmp/descent-menu.ppm`, and exits successfully. `model-smoke` renders an
-original textured robot preview through the briefing/polygon-model path and
-writes `/tmp/descent-model.ppm`.
+driver, loads the shareware data, follows the direct-to-Level-1 startup path,
+writes a rendered frame to `/tmp/descent-startup.ppm`, and exits successfully.
+`model-smoke` renders an original textured robot preview through the
+briefing/polygon-model path and writes `/tmp/descent-model.ppm`.
 
-To exercise the complete transition from the menu into a rendered Level 1:
+To exercise Level 1 initialization with its dedicated frame dump:
 
 ```sh
 make -C macos level-smoke

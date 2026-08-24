@@ -123,13 +123,19 @@ $(BUILD)/test_dos_find: tests/test_dos_find.c src/dos_find_macos.c
 	@mkdir -p $(BUILD)
 	$(CC) -x c -Iinclude $(CFLAGS) tests/test_dos_find.c src/dos_find_macos.c -o $@
 
+$(BUILD)/test_sdl_quit: tests/test_sdl_quit.c src/sdl_shim.c $(SDL_STAMP)
+	@mkdir -p $(BUILD)
+	$(CC) -x c -Isrc $(CFLAGS) -F$(DEPS) tests/test_sdl_quit.c src/sdl_shim.c \
+		-framework SDL3 -Wl,-rpath,$(abspath $(DEPS)) -o $@
+
 test: $(BUILD)/test_fix $(BUILD)/test_linear $(BUILD)/test_asm_contracts \
-		$(BUILD)/test_texmap_scanline $(BUILD)/test_dos_find
+		$(BUILD)/test_texmap_scanline $(BUILD)/test_dos_find $(BUILD)/test_sdl_quit
 	$(BUILD)/test_fix
 	$(BUILD)/test_linear
 	$(BUILD)/test_asm_contracts
 	$(BUILD)/test_texmap_scanline
 	$(BUILD)/test_dos_find
+	$(BUILD)/test_sdl_quit
 
 launch-test: app
 	@cd $(ROOT); \
@@ -148,11 +154,11 @@ launch-test: app
 
 smoke: app
 	cd $(ROOT) && SDL_VIDEODRIVER=dummy DESCENT_USER_DIR=/tmp/descent-smoke-data \
-		DESCENT_FRAME_DUMP=/tmp/descent-menu.ppm \
+		DESCENT_FRAME_DUMP=/tmp/descent-startup.ppm \
 		DESCENT_SMOKE_EXIT=1 \
 		macos/$(EXECUTABLE) -macos-smoke -notitles -nosound -nonetwork \
 		-nojoystick -nomouse
-	test -s /tmp/descent-menu.ppm
+	test -s /tmp/descent-startup.ppm
 
 model-smoke: app
 	cd $(ROOT) && SDL_VIDEODRIVER=dummy DESCENT_USER_DIR=/tmp/descent-smoke-data \

@@ -709,6 +709,9 @@ static char copyright[] = "DESCENT   COPYRIGHT (C) 1994,1995 PARALLAX SOFTWARE C
 #include "player.h"
 #include "text.h"
 #if defined(MACOS)
+#include "platform.h"
+#endif
+#if defined(MACOS)
 #ifdef NETWORK
 #include "ipx.h"
 #endif
@@ -2098,7 +2101,7 @@ int inferno_init(int argc,char **argv)
 	mprintf( (0, "\nInitializing font system..." ));
 	gamefont_init();	// must load after palette data loaded.
 #if defined(MACOS)
-	if (!FindArg("-notitles"))
+	if (!start_to_new_game && !FindArg("-notitles"))
 		songs_play_song( SONG_TITLE, 1 );
 #else
 	songs_play_song( SONG_TITLE, 1 );
@@ -2106,7 +2109,7 @@ int inferno_init(int argc,char **argv)
 
 #if defined(MACOS)
 	#if defined(MACOS)
-	if ( !FindArg( "-notitles" ) )
+	if ( !start_to_new_game && !FindArg( "-notitles" ) )
 	#elif !defined(RELEASE)
 	if ( !FindArg( "-notitles" ) ) 
 	#endif
@@ -2121,7 +2124,7 @@ int inferno_init(int argc,char **argv)
 	}
 
 #if defined(MACOS)
-	if (!FindArg("-notitles"))
+	if (!start_to_new_game && !FindArg("-notitles"))
 #else
 #endif
 	{
@@ -2189,21 +2192,11 @@ int inferno_init(int argc,char **argv)
 	Players[Player_num].callsign[0] = '\0';
 	if (!Auto_demo) 	{
 		key_flush();
-#if defined(MACOS)
-		#if defined(MACOS)
-		/* Automated graphics smoke tests enter the original menu without
-		 * creating a persistent pilot file. Normal app launches are unchanged. */
-		if (FindArg("-macos-smoke"))
-			strcpy(Players[Player_num].callsign, "SMOKE");
-		else
-		#endif
-#else
-#endif
 		RegisterPlayer();		//get player's name
 	}
 
 #if defined(MACOS)
-	if (!FindArg("-notitles"))
+	if (!start_to_new_game && !FindArg("-notitles"))
 		gr_palette_fade_out( title_pal, 32, 0 );
 #else
 	gr_palette_fade_out( title_pal, 32, 0 );

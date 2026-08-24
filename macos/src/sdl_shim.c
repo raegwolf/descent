@@ -14,6 +14,12 @@ struct descent_sdl {
     unsigned presented_frames;
 };
 
+static void quit_immediately(void)
+{
+    /* A native window close is final; do not translate it into game input. */
+    exit(EXIT_SUCCESS);
+}
+
 static void dump_test_frame(descent_sdl *platform)
 {
     const char *path = getenv("DESCENT_FRAME_DUMP");
@@ -98,7 +104,7 @@ descent_input descent_sdl_poll_input(descent_sdl *platform)
     if (!SDL_PollEvent(&event))
         return DESCENT_INPUT_NONE;
     if (event.type == SDL_EVENT_QUIT)
-        return DESCENT_INPUT_QUIT;
+        quit_immediately();
     if (event.type != SDL_EVENT_KEY_DOWN || event.key.repeat)
         return DESCENT_INPUT_NONE;
 
@@ -184,9 +190,7 @@ int descent_sdl_poll_key(descent_sdl *platform, int *scan, int *pressed)
     (void)platform;
     while (SDL_PollEvent(&event)) {
         if (event.type == SDL_EVENT_QUIT) {
-            *scan = 0x01;
-            *pressed = 1;
-            return 1;
+            quit_immediately();
         }
         if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
             int mapped = pc_scancode(event.key.scancode);

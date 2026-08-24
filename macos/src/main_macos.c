@@ -18,7 +18,10 @@
 int inferno_init(int argc, char **argv);
 void function_loop(void);
 int inferno_done(void);
+extern int Skip_briefing_screens;
 extern unsigned macos_tmap_scanline_count;
+
+int start_to_new_game = 1;
 
 static int has_argument(int argc, char **argv, const char *wanted)
 {
@@ -48,10 +51,18 @@ static int render_model_smoke(void)
 	return 0;
 }
 
+static void start_level_one_without_briefing(void)
+{
+	int previous_skip_briefing_screens = Skip_briefing_screens;
+	Skip_briefing_screens = 1;
+	StartNewGame(1);
+	Skip_briefing_screens = previous_skip_briefing_screens;
+}
+
 static void run_level_smoke(void)
 {
 	const char *dump_path;
-	StartNewGame(1);
+	start_level_one_without_briefing();
 	dump_path = getenv("DESCENT_LEVEL_FRAME_DUMP");
 	if (dump_path != NULL)
 		setenv("DESCENT_FRAME_DUMP", dump_path, 1);
@@ -228,8 +239,11 @@ int main(int argc, char **argv)
 			result = render_model_smoke();
 		else if (has_argument(argc, argv, "-macos-level-smoke"))
 			run_level_smoke();
-		else
+		else {
+			if (start_to_new_game)
+				start_level_one_without_briefing();
 			function_loop();
+		}
 		if (result == 0)
 			result = inferno_done();
 	}
