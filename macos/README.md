@@ -25,8 +25,9 @@ available `resources/descent.hog` and `resources/descent.pig` files are copied
 into the app bundle. A normal launch ensures that `pilot.plr` exists, loads
 that pilot without showing pilot-selection or creation menus, skips the title
 and Level 1 briefing, then starts a new game on Level 1. Set
-`start_to_new_game` to `0` in `macos/src/main_macos.c` to restore the original
-title, briefing, and main-menu startup flow.
+`start_to_new_game` to `0` in `macos/src/config.c` to restore the original
+title, briefing, and main-menu startup flow. The same file's `show_fps` setting
+controls the in-game FPS counter.
 
 For a headless graphics/asset smoke test:
 

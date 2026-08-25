@@ -50,7 +50,7 @@ ENGINE_SOURCES := \
 	3D/INSTANCE_C.C 3D/INTERP_C.C 3D/MATRIX_C.C 3D/POINTS_C.C \
 	3D/ROD_C.C 3D/SETUP_C.C
 
-PLATFORM_SOURCES := src/main_macos.c src/sdl_shim.c src/gr_macos.c src/palette_macos.c \
+PLATFORM_SOURCES := src/config.c src/main_macos.c src/sdl_shim.c src/gr_macos.c src/palette_macos.c \
 	src/key_macos.c src/timer_macos.c src/platform_stubs.c src/dos_find_macos.c \
 	src/songs_macos.c src/psrand.c
 ENGINE_OBJECTS := $(addprefix $(BUILD)/obj/,$(ENGINE_SOURCES:.C=.o))

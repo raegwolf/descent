@@ -21,8 +21,6 @@ int inferno_done(void);
 extern int Skip_briefing_screens;
 extern unsigned macos_tmap_scanline_count;
 
-int start_to_new_game = 1;
-
 static int has_argument(int argc, char **argv, const char *wanted)
 {
 	int index;

@@ -301,6 +301,7 @@ static char rcsid[] = "$Id: game.c 2.36 1996/01/05 16:52:05 john Exp $";
 #include <dos.h>
 #if defined(MACOS)
 #include "psrand.h"
+#include "platform.h"
 #else
 #endif
 
@@ -1263,7 +1264,6 @@ int set_screen_mode(int sm)
 }
 
 #if defined(MACOS)
-#ifndef RELEASE
 fix frame_time_list[8] = {0,0,0,0,0,0,0,0};
 fix frame_time_total=0;
 int frame_time_cntr=0;
@@ -1297,7 +1297,6 @@ void show_framerate()
 	ftoa( temp, rate );	// Convert fixed to string
 	gr_printf(grd_curcanv->cv_w-50,grd_curcanv->cv_h-20,"FPS: %s ", temp );
 }
-#endif
 #else
 #ifndef RELEASE
 fix frame_time_list[8] = {0,0,0,0,0,0,0,0};
@@ -1765,7 +1764,10 @@ void game_draw_hud_stuff()
 	arcade_frame_info();
 	#endif
 
-#ifndef RELEASE
+#if defined(MACOS)
+	if (show_fps || framerate_on)
+		show_framerate();
+#elif !defined(RELEASE)
 	if (framerate_on)
 		show_framerate();
 #endif
