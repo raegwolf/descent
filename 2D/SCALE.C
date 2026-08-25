@@ -371,7 +371,10 @@ void scale_bitmap_c(grs_bitmap *source_bmp, grs_bitmap *dest_bmp, int x0, int y0
 		u = u0; 
 		v += dv;
 		for (x=x0; x<=x1; x++ )			{
-			*dbits++ = sbits[ u >> 16 ];
+			ubyte c = sbits[ u >> 16 ];
+			if ( c != TRANSPARENCY_COLOR )
+				*dbits = c;
+			dbits++;
 			u += du;
 		}
 	}

@@ -106,6 +106,10 @@ $(BUILD)/test_linear: tests/test_linear.c $(STAGE)/2D/LINEAR_C.C | prepare
 	@mkdir -p $(BUILD)
 	$(CC) -x c $(CPPFLAGS) $(CFLAGS) tests/test_linear.c $(STAGE)/2D/LINEAR_C.C -o $@
 
+$(BUILD)/test_scale: tests/test_scale.c $(STAGE)/2D/SCALE.C | prepare
+	@mkdir -p $(BUILD)
+	$(CC) -x c $(CPPFLAGS) $(CFLAGS) tests/test_scale.c $(STAGE)/2D/SCALE.C -o $@
+
 $(BUILD)/test_asm_contracts: tests/test_asm_contracts.c \
 		$(STAGE)/MAIN/FVI_OFLOW_C.C $(STAGE)/VECMAT/VECMAT_C.C \
 		$(STAGE)/VECMAT/VM_ALIAS_C.C $(STAGE)/FIX/FIX_C.C $(STAGE)/FIX/TABLES_C.C | prepare
@@ -129,10 +133,11 @@ $(BUILD)/test_sdl_quit: tests/test_sdl_quit.c src/sdl_shim.c $(SDL_STAMP)
 	$(CC) -x c -Isrc $(CFLAGS) -F$(DEPS) tests/test_sdl_quit.c src/sdl_shim.c \
 		-framework SDL3 -Wl,-rpath,$(abspath $(DEPS)) -o $@
 
-test: $(BUILD)/test_fix $(BUILD)/test_linear $(BUILD)/test_asm_contracts \
+test: $(BUILD)/test_fix $(BUILD)/test_linear $(BUILD)/test_scale $(BUILD)/test_asm_contracts \
 		$(BUILD)/test_texmap_scanline $(BUILD)/test_dos_find $(BUILD)/test_sdl_quit
 	$(BUILD)/test_fix
 	$(BUILD)/test_linear
+	$(BUILD)/test_scale
 	$(BUILD)/test_asm_contracts
 	$(BUILD)/test_texmap_scanline
 	$(BUILD)/test_dos_find
