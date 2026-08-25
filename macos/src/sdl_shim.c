@@ -4,12 +4,16 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct descent_sdl {
     SDL_Window *window;
     SDL_Renderer *renderer;
     SDL_Texture *texture;
     uint32_t rgba[DESCENT_SCREEN_WIDTH * DESCENT_SCREEN_HEIGHT];
+    uint32_t argb_palette[256];
+    uint8_t palette_6bit[256 * 3];
+    int palette_6bit_valid;
     int dumped_test_frame;
     unsigned presented_frames;
 };
@@ -204,21 +208,19 @@ int descent_sdl_poll_key(descent_sdl *platform, int *scan, int *pressed)
     return 0;
 }
 
-int descent_sdl_present(descent_sdl *platform,
-                        const uint8_t *indexed_pixels,
-                        const uint8_t palette[256][3])
+static void map_indexed_pixels(descent_sdl *platform,
+                               const uint8_t *indexed_pixels,
+                               const uint32_t argb_palette[256])
 {
     int pixel_count = DESCENT_SCREEN_WIDTH * DESCENT_SCREEN_HEIGHT;
     int index;
 
-    for (index = 0; index < pixel_count; ++index) {
-        const uint8_t *rgb = palette[indexed_pixels[index]];
-        platform->rgba[index] = UINT32_C(0xff000000) |
-                                ((uint32_t)rgb[0] << 16) |
-                                ((uint32_t)rgb[1] << 8) |
-                                rgb[2];
-    }
+    for (index = 0; index < pixel_count; ++index)
+        platform->rgba[index] = argb_palette[indexed_pixels[index]];
+}
 
+static int upload_and_present(descent_sdl *platform)
+{
     platform->presented_frames++;
     dump_test_frame(platform);
 
@@ -236,21 +238,48 @@ int descent_sdl_present(descent_sdl *platform,
     return 1;
 }
 
+int descent_sdl_present(descent_sdl *platform,
+                        const uint8_t *indexed_pixels,
+                        const uint8_t palette[256][3])
+{
+    uint32_t argb_palette[256];
+    int color;
+
+    for (color = 0; color < 256; ++color) {
+        argb_palette[color] = UINT32_C(0xff000000) |
+                              ((uint32_t)palette[color][0] << 16) |
+                              ((uint32_t)palette[color][1] << 8) |
+                              palette[color][2];
+    }
+    map_indexed_pixels(platform, indexed_pixels, argb_palette);
+    return upload_and_present(platform);
+}
+
 int descent_sdl_present_6bit(descent_sdl *platform,
                              const uint8_t *indexed_pixels,
                              const uint8_t palette[256 * 3])
 {
-    uint8_t expanded[256][3];
     int color;
-    int component;
 
-    for (color = 0; color < 256; ++color) {
-        for (component = 0; component < 3; ++component) {
-            uint8_t value = palette[color * 3 + component] & 63;
-            expanded[color][component] = (uint8_t)((value << 2) | (value >> 4));
+    if (!platform->palette_6bit_valid ||
+        memcmp(platform->palette_6bit, palette, sizeof(platform->palette_6bit)) != 0) {
+        for (color = 0; color < 256; ++color) {
+            uint8_t red = palette[color * 3] & 63;
+            uint8_t green = palette[color * 3 + 1] & 63;
+            uint8_t blue = palette[color * 3 + 2] & 63;
+            red = (uint8_t)((red << 2) | (red >> 4));
+            green = (uint8_t)((green << 2) | (green >> 4));
+            blue = (uint8_t)((blue << 2) | (blue >> 4));
+            platform->argb_palette[color] = UINT32_C(0xff000000) |
+                                            ((uint32_t)red << 16) |
+                                            ((uint32_t)green << 8) |
+                                            blue;
         }
+        memcpy(platform->palette_6bit, palette, sizeof(platform->palette_6bit));
+        platform->palette_6bit_valid = 1;
     }
-    return descent_sdl_present(platform, indexed_pixels, expanded);
+    map_indexed_pixels(platform, indexed_pixels, platform->argb_palette);
+    return upload_and_present(platform);
 }
 
 uint64_t descent_sdl_ticks(void)

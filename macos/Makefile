@@ -22,7 +22,8 @@ CFLAGS := -std=gnu89 -funsigned-char -fwrapv -fcommon -fno-strict-aliasing -g \
 	-Wall -Wno-nonportable-include-path -Wno-unknown-pragmas \
 	-Wno-implicit-function-declaration -Wno-int-conversion \
 	-Wno-incompatible-pointer-types -Wno-deprecated-non-prototype -Wno-return-mismatch
-APP_FLAGS := $(CPPFLAGS) $(CFLAGS) -F$(DEPS)
+APP_OPTFLAGS ?= -O2
+APP_FLAGS := $(CPPFLAGS) $(CFLAGS) $(APP_OPTFLAGS) -F$(DEPS)
 
 ENGINE_SOURCES := \
 	CFILE/CFILE.C \

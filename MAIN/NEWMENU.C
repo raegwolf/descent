@@ -521,15 +521,15 @@ static char rcsid[] = "$Id: newmenu.c 2.8 1995/05/26 16:16:28 john Exp $";
 #define NORMAL_FONT  	(Gamefonts[GFONT_MEDIUM_1])
 #define TEXT_FONT  		(Gamefonts[GFONT_MEDIUM_3])
 
-#define NORMAL_CHECK_BOX	"Å"
-#define CHECKED_CHECK_BOX	"Ç"
+#define NORMAL_CHECK_BOX	"\x81"
+#define CHECKED_CHECK_BOX	"\x82"
 #define NORMAL_RADIO_BOX	""
-#define CHECKED_RADIO_BOX	"Ä"
+#define CHECKED_RADIO_BOX	"\x80"
 #define CURSOR_STRING		"_"
-#define SLIDER_LEFT			"É"		// 131
-#define SLIDER_RIGHT			"Ñ"		// 132
-#define SLIDER_MIDDLE		"Ö"		// 133
-#define SLIDER_MARKER		"Ü"		// 134
+#define SLIDER_LEFT			"\x83"		// 131
+#define SLIDER_RIGHT			"\x84"		// 132
+#define SLIDER_MIDDLE		"\x85"		// 133
+#define SLIDER_MARKER		"\x86"		// 134
 
 int Newmenu_first_time = 1;
 //--unused-- int Newmenu_fade_in = 1;
@@ -1196,7 +1196,9 @@ int newmenu_do3( char * title, char * subtitle, int nitems, newmenu_item * item,
 	while(!done)	{
 		//network_listen();
 	
-
+	#if defined(MACOS)
+		gr_sync_display();
+	#endif
 		k = key_inkey();
 
 		if (subfunction)
@@ -1724,6 +1726,9 @@ ReadFileNames:
 	while(!done)	{
 		ocitem = citem;
 		ofirst_item = first_item;
+	#if defined(MACOS)
+		gr_sync_display();
+	#endif
 		key = key_inkey();
 		switch(key)	{
 		case KEY_PRINT_SCREEN: 		save_screen_shot(0); break;
@@ -1988,6 +1993,9 @@ int newmenu_listbox1( char * title, int nitems, char * items[], int allow_abort_
 	while(!done)	{
 		ocitem = citem;
 		ofirst_item = first_item;
+	#if defined(MACOS)
+		gr_sync_display();
+	#endif
 		key = key_inkey();
 
 		if ( listbox_callback )

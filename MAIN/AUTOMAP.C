@@ -879,6 +879,9 @@ void do_automap( int key_code )	{
 			first_time = 0;
 			gr_palette_load( gr_palette );
 		}
+	#if defined(MACOS)
+		gr_sync_display();
+	#endif
 
 		t2 = timer_get_fixed_seconds();
 		if (pause_game)

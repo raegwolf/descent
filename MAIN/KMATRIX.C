@@ -285,6 +285,9 @@ void kmatrix_view(int network)
 
 	while(!done)	{
 
+	#if defined(MACOS)
+		gr_sync_display();
+	#endif
 		for (i=0; i<4; i++ )	
 			if (joy_get_button_down_cnt(i)>0) done=1;
 		for (i=0; i<3; i++ )	

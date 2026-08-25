@@ -5039,6 +5039,11 @@ player_follow_path(ConsoleObject);
 				force_cockpit_redraw=0;
 			}
 			game_render_frame();
+		#if defined(MACOS)
+			/* Input accessors below may be called dozens of times.  Present
+			 * once at the actual frame boundary instead of from each query. */
+			gr_sync_display();
+		#endif
 		}
 
 //		mprintf(0,"Velocity %2.2f\n", f2fl(vm_vec_mag(&ConsoleObject->phys_info.velocity)));

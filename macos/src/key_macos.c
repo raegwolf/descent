@@ -61,7 +61,6 @@ static void handle_event(int scan, int pressed)
 static void pump(void)
 {
 	int scan, pressed;
-	macos_present_frame();
 	while (macos_poll_key_event(&scan, &pressed)) handle_event(scan, pressed);
 }
 

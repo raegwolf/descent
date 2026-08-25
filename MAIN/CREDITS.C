@@ -316,6 +316,9 @@ void credits_show()
 					y += ROW_SPACING;
 			}
 			gr_bm_ubitblt(320, 200, 0, 0, 0, 0, &(VR_offscreen_buffer->cv_bitmap), &(grd_curscreen->sc_canvas.cv_bitmap) );
+		#if defined(MACOS)
+			gr_sync_display();
+		#endif
 
 			while( timer_get_fixed_seconds() < last_time+time_delay );
 			last_time = timer_get_fixed_seconds();
