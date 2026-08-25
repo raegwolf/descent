@@ -1,4 +1,5 @@
 #include "key.h"
+#include "mouse.h"
 #include "gameseq.h"
 #include "polyobj.h"
 #include "timer.h"
@@ -227,12 +228,17 @@ static void enable_finder_launch_log(void)
 int main(int argc, char **argv)
 {
 	int result;
+	int mouse_enabled = 0;
 	enable_finder_launch_log();
 	use_macos_working_directory();
 	timer_init();
 	key_init();
 	result = inferno_init(argc, argv);
 	if (result == 0) {
+		if (!has_argument(argc, argv, "-nomouse")) {
+			mouse_init(0);
+			mouse_enabled = 1;
+		}
 		if (has_argument(argc, argv, "-macos-model-smoke"))
 			result = render_model_smoke();
 		else if (has_argument(argc, argv, "-macos-level-smoke"))
@@ -242,6 +248,8 @@ int main(int argc, char **argv)
 				start_level_one_without_briefing();
 			function_loop();
 		}
+		if (mouse_enabled)
+			mouse_close();
 		if (result == 0)
 			result = inferno_done();
 	}

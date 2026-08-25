@@ -76,19 +76,6 @@ void joy_set_cal_vals(int *a,int *b,int *c) {(void)a;(void)b;(void)c;}
 void joy_set_btn_values(int a,int b,fix c,int d,int e) {(void)a;(void)b;(void)c;(void)d;(void)e;}
 void joy_set_slow_reading(int a) {(void)a;}
 
-int mouse_init(int n) {(void)n;return 0;}
-void mouse_close(void) {}
-void mouse_flush(void) {}
-int mouse_set_limits(int a,int b,int c,int d) {(void)a;(void)b;(void)c;(void)d;return 0;}
-void mouse_get_pos(int *x,int *y) {*x=*y=0;}
-void mouse_get_delta(int *x,int *y) {*x=*y=0;}
-int mouse_get_btns(void) {return 0;}
-void mouse_set_pos(int x,int y) {(void)x;(void)y;}
-void mouse_get_cyberman_pos(int *x,int *y) {*x=*y=0;}
-fix mouse_button_down_time(int n) {(void)n;return 0;}
-int mouse_button_down_count(int n) {(void)n;return 0;}
-int mouse_button_state(int n) {(void)n;return 0;}
-
 int minit(void) {return 0;}
 void mclose(int n) {(void)n;}
 void mopen(int n,int r,int c,int w,int h,char *t) {(void)n;(void)r;(void)c;(void)w;(void)h;(void)t;}

@@ -12,7 +12,8 @@ SOURCE_INPUTS := $(shell find $(addprefix $(ROOT)/,$(SOURCE_DIRS)) -type f 2>/de
 STAGE_STAMP := $(STAGE)/.prepared
 
 CC := clang
-CPPFLAGS := -DMACOS=1 -DSHAREWARE=1 -DRELEASE=1 -DNDEBUG=1 -DNASM=1 \
+CPPFLAGS := -DMACOS=1 -DMACOS_MOUSE_ACCELERATION_MULTIPLIER=2 \
+	-DSHAREWARE=1 -DRELEASE=1 -DNDEBUG=1 -DNASM=1 \
 	-D_far= -Dfar= -Dnear= -D__far= -D__near= -D__interrupt= -D_interrupt= \
 	-Iinclude -Isrc -I$(STAGE)/INCLUDES -I$(STAGE)/CFILE -I$(STAGE)/BIOS \
 	-I$(STAGE)/2D -I$(STAGE)/3D -I$(STAGE)/FIX -I$(STAGE)/VECMAT \
@@ -53,7 +54,7 @@ ENGINE_SOURCES := \
 
 PLATFORM_SOURCES := src/config.c src/main_macos.c src/sdl_shim.c src/gr_macos.c src/palette_macos.c \
 	src/key_macos.c src/timer_macos.c src/platform_stubs.c src/dos_find_macos.c \
-	src/songs_macos.c src/psrand.c
+	src/mouse_macos.c src/songs_macos.c src/psrand.c
 ENGINE_OBJECTS := $(addprefix $(BUILD)/obj/,$(ENGINE_SOURCES:.C=.o))
 PLATFORM_OBJECTS := $(addprefix $(BUILD)/obj/macos/,$(notdir $(PLATFORM_SOURCES:.c=.o)))
 APP_OBJECTS := $(ENGINE_OBJECTS) $(PLATFORM_OBJECTS)
@@ -106,6 +107,10 @@ $(BUILD)/test_linear: tests/test_linear.c $(STAGE)/2D/LINEAR_C.C | prepare
 	@mkdir -p $(BUILD)
 	$(CC) -x c $(CPPFLAGS) $(CFLAGS) tests/test_linear.c $(STAGE)/2D/LINEAR_C.C -o $@
 
+$(BUILD)/test_mouse: tests/test_mouse.c src/mouse_macos.c | prepare
+	@mkdir -p $(BUILD)
+	$(CC) -x c $(CPPFLAGS) $(CFLAGS) tests/test_mouse.c src/mouse_macos.c -o $@
+
 $(BUILD)/test_scale: tests/test_scale.c $(STAGE)/2D/SCALE.C | prepare
 	@mkdir -p $(BUILD)
 	$(CC) -x c $(CPPFLAGS) $(CFLAGS) tests/test_scale.c $(STAGE)/2D/SCALE.C -o $@
@@ -130,17 +135,26 @@ $(BUILD)/test_dos_find: tests/test_dos_find.c src/dos_find_macos.c
 
 $(BUILD)/test_sdl_quit: tests/test_sdl_quit.c src/sdl_shim.c $(SDL_STAMP)
 	@mkdir -p $(BUILD)
-	$(CC) -x c -Isrc $(CFLAGS) -F$(DEPS) tests/test_sdl_quit.c src/sdl_shim.c \
+	$(CC) -x c $(CPPFLAGS) $(CFLAGS) -F$(DEPS) tests/test_sdl_quit.c src/sdl_shim.c \
 		-framework SDL3 -Wl,-rpath,$(abspath $(DEPS)) -o $@
 
-test: $(BUILD)/test_fix $(BUILD)/test_linear $(BUILD)/test_scale $(BUILD)/test_asm_contracts \
-		$(BUILD)/test_texmap_scanline $(BUILD)/test_dos_find $(BUILD)/test_sdl_quit
+$(BUILD)/test_sdl_mouse: tests/test_sdl_mouse.c src/sdl_shim.c $(SDL_STAMP)
+	@mkdir -p $(BUILD)
+	$(CC) -x c $(CPPFLAGS) $(CFLAGS) -F$(DEPS) tests/test_sdl_mouse.c src/sdl_shim.c \
+		-framework SDL3 -Wl,-rpath,$(abspath $(DEPS)) -o $@
+
+test: $(BUILD)/test_fix $(BUILD)/test_linear $(BUILD)/test_mouse $(BUILD)/test_scale \
+		$(BUILD)/test_asm_contracts \
+		$(BUILD)/test_texmap_scanline $(BUILD)/test_dos_find $(BUILD)/test_sdl_mouse \
+		$(BUILD)/test_sdl_quit
 	$(BUILD)/test_fix
 	$(BUILD)/test_linear
+	$(BUILD)/test_mouse
 	$(BUILD)/test_scale
 	$(BUILD)/test_asm_contracts
 	$(BUILD)/test_texmap_scanline
 	$(BUILD)/test_dos_find
+	SDL_VIDEODRIVER=dummy $(BUILD)/test_sdl_mouse
 	$(BUILD)/test_sdl_quit
 
 launch-test: app

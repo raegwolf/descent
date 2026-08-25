@@ -907,7 +907,12 @@ void do_options_menu()
 		m[7].type = NM_TYPE_MENU; m[7].text=TXT_DETAIL_LEVELS;
 		m[8].type = NM_TYPE_MENU; m[8].text=TXT_CAL_JOYSTICK;
 		m[9].type = NM_TYPE_TEXT; m[9].text="";
-		m[10].type = NM_TYPE_SLIDER; m[10].text=TXT_JOYS_SENSITIVITY; m[10].value=Config_joystick_sensitivity; m[10].min_value =0; m[10].max_value = 8;
+		m[10].type = NM_TYPE_SLIDER; m[10].text=TXT_JOYS_SENSITIVITY; m[10].value=Config_joystick_sensitivity; m[10].min_value =0;
+#if defined(MACOS)
+		m[10].max_value = 20;
+#else
+		m[10].max_value = 8;
+#endif
 		m[11].type = NM_TYPE_TEXT; m[11].text="";
 		m[12].type = NM_TYPE_CHECK; m[12].text="Ship auto-leveling"; m[12].value=Auto_leveling_on; 
 				

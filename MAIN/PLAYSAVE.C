@@ -354,12 +354,19 @@ RetrySelection:
 	if ( control_choice < 0 )
 		return 0;
 
+	#if defined(MACOS)
+	/* kc_set_controls selects the device table using this value.  Set it
+	 * before loading defaults so a fresh Mouse pilot receives mouse axes. */
+	Config_control_type = control_choice;
+	#endif
 	for (i=0;i<CONTROL_MAX_TYPES; i++ )
 		for (j=0;j<MAX_CONTROLS; j++ )
 			kconfig_settings[i][j] = default_kconfig_settings[i][j];
 	kc_set_controls();
 
+	#if !defined(MACOS)
 	Config_control_type = control_choice;
+	#endif
 
 	if ( Config_control_type==CONTROL_THRUSTMASTER_FCS)	{
 		i = nm_messagebox( TXT_IMPORTANT_NOTE, 2, "Choose another", TXT_OK, TXT_FCS );

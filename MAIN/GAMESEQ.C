@@ -942,7 +942,7 @@ static int use_macos_pilot(void)
 	}
 
 	Config_joystick_sensitivity = 8;
-	Config_control_type = CONTROL_NONE;
+	Config_control_type = CONTROL_MOUSE;
 	for (i = 0; i < CONTROL_MAX_TYPES; i++)
 		for (j = 0; j < MAX_CONTROLS; j++)
 			kconfig_settings[i][j] = default_kconfig_settings[i][j];

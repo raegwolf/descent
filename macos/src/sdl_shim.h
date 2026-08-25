@@ -22,6 +22,9 @@ descent_sdl *descent_sdl_create(const char *title);
 void descent_sdl_destroy(descent_sdl *platform);
 descent_input descent_sdl_poll_input(descent_sdl *platform);
 int descent_sdl_poll_key(descent_sdl *platform, int *pc_scancode, int *pressed);
+void descent_sdl_poll_mouse(descent_sdl *platform, int *dx, int *dy,
+                            int *buttons, unsigned down_counts[3]);
+void descent_sdl_set_relative_mouse(descent_sdl *platform, int enabled);
 int descent_sdl_present(descent_sdl *platform,
                         const uint8_t *indexed_pixels,
                         const uint8_t palette[256][3]);

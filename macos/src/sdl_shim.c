@@ -6,6 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define INPUT_KEY_QUEUE_SIZE 64
+#define DESCENT_STRINGIFY_INNER(value) #value
+#define DESCENT_STRINGIFY(value) DESCENT_STRINGIFY_INNER(value)
+
 struct descent_sdl {
     SDL_Window *window;
     SDL_Renderer *renderer;
@@ -16,6 +20,14 @@ struct descent_sdl {
     int palette_6bit_valid;
     int dumped_test_frame;
     unsigned presented_frames;
+    int key_scancodes[INPUT_KEY_QUEUE_SIZE];
+    unsigned char key_pressed[INPUT_KEY_QUEUE_SIZE];
+    unsigned key_head;
+    unsigned key_tail;
+    float mouse_dx;
+    float mouse_dy;
+    int mouse_buttons;
+    unsigned mouse_down_counts[3];
 };
 
 static void quit_immediately(void)
@@ -53,6 +65,12 @@ descent_sdl *descent_sdl_create(const char *title)
 {
     descent_sdl *platform;
 
+    /* SDL relative mode is raw and linear by default.  Descent expects the
+     * accelerated desktop-style mouse response used by its DOS driver, so
+     * retain the macOS system acceleration curve while the cursor is captured. */
+    (void)SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_SYSTEM_SCALE, "1");
+    (void)SDL_SetHint(SDL_HINT_MOUSE_RELATIVE_SPEED_SCALE,
+                      DESCENT_STRINGIFY(MACOS_MOUSE_ACCELERATION_MULTIPLIER));
     if (!SDL_SetAppMetadata("Descent", "0.1", "org.descent.port"))
         return NULL;
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
@@ -188,24 +206,112 @@ static int pc_scancode(SDL_Scancode code)
     }
 }
 
-int descent_sdl_poll_key(descent_sdl *platform, int *scan, int *pressed)
+static int descent_mouse_button(Uint8 button)
 {
-    SDL_Event event;
-    (void)platform;
-    while (SDL_PollEvent(&event)) {
-        if (event.type == SDL_EVENT_QUIT) {
-            quit_immediately();
-        }
-        if (event.type == SDL_EVENT_KEY_DOWN || event.type == SDL_EVENT_KEY_UP) {
-            int mapped = pc_scancode(event.key.scancode);
-            if (mapped != 0) {
-                *scan = mapped;
-                *pressed = event.type == SDL_EVENT_KEY_DOWN;
-                return 1;
+    switch (button) {
+        case SDL_BUTTON_LEFT: return 0;
+        case SDL_BUTTON_RIGHT: return 1;
+        case SDL_BUTTON_MIDDLE: return 2;
+        default: return -1;
+    }
+}
+
+static void queue_key_event(descent_sdl *platform, int scan, int pressed)
+{
+    unsigned next = (platform->key_tail + 1) % INPUT_KEY_QUEUE_SIZE;
+    if (next == platform->key_head)
+        return;
+    platform->key_scancodes[platform->key_tail] = scan;
+    platform->key_pressed[platform->key_tail] = (unsigned char)pressed;
+    platform->key_tail = next;
+}
+
+static void handle_game_event(descent_sdl *platform, const SDL_Event *event)
+{
+    if (event->type == SDL_EVENT_QUIT)
+        quit_immediately();
+
+    if (event->type == SDL_EVENT_MOUSE_MOTION) {
+        platform->mouse_dx += event->motion.xrel;
+        platform->mouse_dy += event->motion.yrel;
+    } else if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN ||
+               event->type == SDL_EVENT_MOUSE_BUTTON_UP) {
+        int button = descent_mouse_button(event->button.button);
+        if (button >= 0) {
+            int mask = 1 << button;
+            if (event->type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                if ((platform->mouse_buttons & mask) == 0)
+                    platform->mouse_down_counts[button]++;
+                platform->mouse_buttons |= mask;
+            } else {
+                platform->mouse_buttons &= ~mask;
             }
         }
+    } else if (event->type == SDL_EVENT_KEY_DOWN ||
+               event->type == SDL_EVENT_KEY_UP) {
+        int mapped = pc_scancode(event->key.scancode);
+        if (mapped != 0)
+            queue_key_event(platform, mapped,
+                            event->type == SDL_EVENT_KEY_DOWN);
     }
-    return 0;
+}
+
+static void pump_game_events(descent_sdl *platform)
+{
+    SDL_Event event;
+    while (SDL_PollEvent(&event))
+        handle_game_event(platform, &event);
+}
+
+int descent_sdl_poll_key(descent_sdl *platform, int *scan, int *pressed)
+{
+    if (platform == NULL) {
+        SDL_Event event;
+        while (SDL_PollEvent(&event))
+            if (event.type == SDL_EVENT_QUIT)
+                quit_immediately();
+        return 0;
+    }
+
+    pump_game_events(platform);
+    if (platform->key_head == platform->key_tail)
+        return 0;
+    *scan = platform->key_scancodes[platform->key_head];
+    *pressed = platform->key_pressed[platform->key_head];
+    platform->key_head = (platform->key_head + 1) % INPUT_KEY_QUEUE_SIZE;
+    return 1;
+}
+
+void descent_sdl_poll_mouse(descent_sdl *platform, int *dx, int *dy,
+                            int *buttons, unsigned down_counts[3])
+{
+    int button;
+
+    *dx = *dy = *buttons = 0;
+    for (button = 0; button < 3; ++button)
+        down_counts[button] = 0;
+    if (platform == NULL)
+        return;
+
+    pump_game_events(platform);
+    *dx = (int)platform->mouse_dx;
+    *dy = (int)platform->mouse_dy;
+    *buttons = platform->mouse_buttons;
+    /* SDL3 motion is floating point.  Keep the fractional remainder so
+     * high-resolution macOS events are not discarded before they add up to
+     * a whole legacy mouse count. */
+    platform->mouse_dx -= (float)*dx;
+    platform->mouse_dy -= (float)*dy;
+    for (button = 0; button < 3; ++button) {
+        down_counts[button] = platform->mouse_down_counts[button];
+        platform->mouse_down_counts[button] = 0;
+    }
+}
+
+void descent_sdl_set_relative_mouse(descent_sdl *platform, int enabled)
+{
+    if (platform != NULL)
+        (void)SDL_SetWindowRelativeMouseMode(platform->window, enabled != 0);
 }
 
 static void map_indexed_pixels(descent_sdl *platform,

@@ -256,6 +256,17 @@ int macos_poll_key_event(int *scancode, int *pressed)
 	return descent_sdl_poll_key(macos_sdl, scancode, pressed);
 }
 
+void macos_poll_mouse(int *dx, int *dy, int *buttons,
+			      unsigned down_counts[3])
+{
+	descent_sdl_poll_mouse(macos_sdl, dx, dy, buttons, down_counts);
+}
+
+void macos_set_relative_mouse(int enabled)
+{
+	descent_sdl_set_relative_mouse(macos_sdl, enabled);
+}
+
 void macos_delay(unsigned milliseconds)
 {
 	descent_sdl_delay(milliseconds);
