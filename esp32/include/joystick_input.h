@@ -30,9 +30,11 @@ enum descent_menu_input {
     DESCENT_MENU_INPUT_SELECT
 };
 
-/* Call reset while both sticks are released and centered. */
-void descent_joystick_reset(uint32_t now_ms,
-                            const uint16_t center[DESCENT_JOYSTICK_AXIS_COUNT]);
+/* Call calibrate while both sticks are released. Each measured position is
+ * treated as zero and its inverse is stored as the subsequent reading offset. */
+void descent_joystick_calibrate(
+    uint32_t now_ms,
+    const uint16_t neutral_reading[DESCENT_JOYSTICK_AXIS_COUNT]);
 void descent_joystick_update(
     uint32_t now_ms,
     const uint16_t raw[DESCENT_JOYSTICK_AXIS_COUNT],
@@ -42,6 +44,7 @@ void descent_joystick_flush(uint32_t now_ms);
 /* Axes are normalized to -32767..32767. X is positive to the right and Y is
  * positive upward, independent of the KY-023 potentiometer direction. */
 int descent_joystick_axis_value(unsigned int axis);
+int descent_joystick_axis_offset(unsigned int axis);
 int descent_joystick_button_state(unsigned int button);
 unsigned int descent_joystick_take_button_down_count(unsigned int button);
 

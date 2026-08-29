@@ -777,9 +777,14 @@ void initializeJoysticks()
     for (unsigned int axis = 0; axis < DESCENT_JOYSTICK_AXIS_COUNT; ++axis)
         centers[axis] = static_cast<uint16_t>(
             totals[axis] / kJoystickCenterSamples);
-    descent_joystick_reset(millis(), centers);
-    Serial.printf("Joystick centers: J1=%u,%u J2=%u,%u\n",
+    descent_joystick_calibrate(millis(), centers);
+    Serial.printf("Joystick neutral readings: J1=%u,%u J2=%u,%u\n",
                   centers[0], centers[1], centers[2], centers[3]);
+    Serial.printf("Joystick offsets: J1=%d,%d J2=%d,%d\n",
+                  descent_joystick_axis_offset(0),
+                  descent_joystick_axis_offset(1),
+                  descent_joystick_axis_offset(2),
+                  descent_joystick_axis_offset(3));
 }
 
 void gameTask(void *)

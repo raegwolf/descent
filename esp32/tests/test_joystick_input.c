@@ -17,7 +17,24 @@ static void settle(uint32_t *now, uint16_t lx, uint16_t ly,
 static void reset_centered(uint32_t *now)
 {
     uint16_t center[DESCENT_JOYSTICK_AXIS_COUNT] = {2048, 2048, 2048, 2048};
-    descent_joystick_reset(*now, center);
+    descent_joystick_calibrate(*now, center);
+}
+
+static void test_asymmetric_startup_offsets(void)
+{
+    uint32_t now = 0;
+    uint16_t neutral[DESCENT_JOYSTICK_AXIS_COUNT] = {1700, 2250, 1900, 2400};
+    descent_joystick_calibrate(now, neutral);
+
+    assert(descent_joystick_axis_offset(DESCENT_JOYSTICK_LEFT_X) == -1700);
+    assert(descent_joystick_axis_offset(DESCENT_JOYSTICK_LEFT_Y) == -2250);
+    assert(descent_joystick_axis_offset(DESCENT_JOYSTICK_RIGHT_X) == -1900);
+    assert(descent_joystick_axis_offset(DESCENT_JOYSTICK_RIGHT_Y) == -2400);
+    settle(&now, 1700, 2250, 1900, 2400, 0);
+    assert(descent_joystick_axis_value(DESCENT_JOYSTICK_LEFT_X) == 0);
+    assert(descent_joystick_axis_value(DESCENT_JOYSTICK_LEFT_Y) == 0);
+    assert(descent_joystick_axis_value(DESCENT_JOYSTICK_RIGHT_X) == 0);
+    assert(descent_joystick_axis_value(DESCENT_JOYSTICK_RIGHT_Y) == 0);
 }
 
 static void test_axes_and_dead_zone(void)
@@ -30,7 +47,7 @@ static void test_axes_and_dead_zone(void)
 
     settle(&now, 4095, 0, 0, 4095, 0);
     assert(descent_joystick_axis_value(DESCENT_JOYSTICK_LEFT_X) > 30000);
-    assert(descent_joystick_axis_value(DESCENT_JOYSTICK_LEFT_Y) > 30000);
+    assert(descent_joystick_axis_value(DESCENT_JOYSTICK_LEFT_Y) < -30000);
     assert(descent_joystick_axis_value(DESCENT_JOYSTICK_RIGHT_X) < -30000);
     assert(descent_joystick_axis_value(DESCENT_JOYSTICK_RIGHT_Y) < -30000);
 }
@@ -63,9 +80,9 @@ static void test_buttons_are_edge_counted(void)
 static void test_menu_direction_select_and_repeat(void)
 {
     uint32_t now = 0;
-    uint16_t raw[DESCENT_JOYSTICK_AXIS_COUNT] = {2048, 0, 2048, 2048};
+    uint16_t raw[DESCENT_JOYSTICK_AXIS_COUNT] = {2048, 4095, 2048, 2048};
     reset_centered(&now);
-    settle(&now, 2048, 0, 2048, 2048, 0);
+    settle(&now, 2048, 4095, 2048, 2048, 0);
     assert(descent_joystick_take_menu_input() == DESCENT_MENU_INPUT_UP);
     while (descent_joystick_take_menu_input() != DESCENT_MENU_INPUT_NONE) {}
 
@@ -87,6 +104,7 @@ static void test_menu_direction_select_and_repeat(void)
 
 int main(void)
 {
+    test_asymmetric_startup_offsets();
     test_axes_and_dead_zone();
     test_buttons_are_edge_counted();
     test_menu_direction_select_and_repeat();

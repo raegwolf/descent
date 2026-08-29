@@ -12,7 +12,7 @@
 #define BUTTON_DEBOUNCE_MS 25U
 
 typedef struct joystick_state {
-    uint16_t center[DESCENT_JOYSTICK_AXIS_COUNT];
+    int offset[DESCENT_JOYSTICK_AXIS_COUNT];
     int filtered[DESCENT_JOYSTICK_AXIS_COUNT];
     int axis[DESCENT_JOYSTICK_AXIS_COUNT];
     uint8_t raw_buttons;
@@ -33,9 +33,9 @@ static int absolute_value(int value)
     return value < 0 ? -value : value;
 }
 
-static int normalize_axis(int raw, int center)
+static int normalize_axis(int raw, int offset)
 {
-    int delta = raw - center;
+    int delta = raw + offset;
     int available;
     int value;
 
@@ -43,14 +43,14 @@ static int normalize_axis(int raw, int center)
         return 0;
 
     if (delta > 0) {
-        available = ADC_MAX_VALUE - center - ADC_DEAD_ZONE;
+        available = ADC_MAX_VALUE + offset - ADC_DEAD_ZONE;
         if (available < 1)
             return 32767;
         value = ((delta - ADC_DEAD_ZONE) * 32767) / available;
         return value > 32767 ? 32767 : value;
     }
 
-    available = center - ADC_DEAD_ZONE;
+    available = -offset - ADC_DEAD_ZONE;
     if (available < 1)
         return -32767;
     value = ((-delta - ADC_DEAD_ZONE) * 32767) / available;
@@ -105,15 +105,15 @@ static void update_menu_direction(unsigned int stick, uint32_t now_ms)
     }
 }
 
-void descent_joystick_reset(
+void descent_joystick_calibrate(
     uint32_t now_ms,
-    const uint16_t center[DESCENT_JOYSTICK_AXIS_COUNT])
+    const uint16_t neutral_reading[DESCENT_JOYSTICK_AXIS_COUNT])
 {
     unsigned int axis;
     memset(&input, 0, sizeof(input));
     for (axis = 0; axis < DESCENT_JOYSTICK_AXIS_COUNT; ++axis) {
-        input.center[axis] = center[axis];
-        input.filtered[axis] = center[axis];
+        input.offset[axis] = -(int)neutral_reading[axis];
+        input.filtered[axis] = neutral_reading[axis];
     }
     input.menu_repeat_at[0] = now_ms + MENU_INITIAL_REPEAT_MS;
     input.menu_repeat_at[1] = now_ms + MENU_INITIAL_REPEAT_MS;
@@ -131,13 +131,11 @@ void descent_joystick_update(
         input.filtered[axis] =
             (input.filtered[axis] * 3 + (int)raw[axis]) / 4;
         input.axis[axis] = normalize_axis(input.filtered[axis],
-                                          input.center[axis]);
+                                          input.offset[axis]);
     }
 
-    /* A KY-023 mounted with its header toward the player reads lower as it is
-     * pushed upward. Expose both Y axes with the natural, positive-up sign. */
-    input.axis[DESCENT_JOYSTICK_LEFT_Y] =
-        -input.axis[DESCENT_JOYSTICK_LEFT_Y];
+    /* J1 is mounted opposite J2 in the enclosure, so only J2 needs its raw Y
+     * direction inverted to expose positive-up values. */
     input.axis[DESCENT_JOYSTICK_RIGHT_Y] =
         -input.axis[DESCENT_JOYSTICK_RIGHT_Y];
 
@@ -189,6 +187,13 @@ int descent_joystick_axis_value(unsigned int axis)
     if (axis >= DESCENT_JOYSTICK_AXIS_COUNT)
         return 0;
     return input.axis[axis];
+}
+
+int descent_joystick_axis_offset(unsigned int axis)
+{
+    if (axis >= DESCENT_JOYSTICK_AXIS_COUNT)
+        return 0;
+    return input.offset[axis];
 }
 
 int descent_joystick_button_state(unsigned int button)
