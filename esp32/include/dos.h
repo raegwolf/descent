@@ -1,5 +1,5 @@
-#ifndef DESCENT_ARDUINO_DOS_H
-#define DESCENT_ARDUINO_DOS_H
+#ifndef DESCENT_ESP32_DOS_H
+#define DESCENT_ESP32_DOS_H
 
 #define _A_NORMAL 0
 #define _A_SUBDIR 0x10

@@ -222,7 +222,7 @@ typedef struct {
 } group;
 
 // Globals from mglobal.c
-#if defined(ARDUINO)
+#if defined(ESP32)
 extern	vms_vector	*Vertices;
 extern	segment		*Segments;
 #else

@@ -1,13 +1,13 @@
 /* ESP32-S3 platform services for the original Descent engine. */
 #define DESCENT_ENGINE_BUILD 1
-#include "arduino_compat.h"
+#include "esp32_compat.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
 
-#include "arduino_bridge.h"
+#include "esp32_bridge.h"
 #include "types.h"
 #include "fix.h"
 #include "vecmat.h"
@@ -23,13 +23,13 @@ int start_to_new_game = 1;
 
 /* Time */
 static uint32_t timer_epoch;
-void timer_init(void) { timer_epoch = arduino_milliseconds(); }
+void timer_init(void) { timer_epoch = esp32_milliseconds(); }
 void timer_close(void) {}
 void timer_set_rate(int count_val) { (void)count_val; }
 void timer_set_function(void *function) { (void)function; }
 fix timer_get_fixed_seconds(void)
 {
-	uint32_t elapsed = arduino_milliseconds() - timer_epoch;
+	uint32_t elapsed = esp32_milliseconds() - timer_epoch;
 	return (fix)(((uint64_t)elapsed * (uint64_t)F1_0) / 1000U);
 }
 fix timer_get_fixed_secondsX(void) { return timer_get_fixed_seconds(); }
@@ -55,7 +55,7 @@ int key_getch(void)
 {
 	/* A blocking prompt is intentionally unanswerable on the no-input build. */
 	gr_sync_display();
-	for (;;) arduino_delay_ms(100);
+	for (;;) esp32_delay_ms(100);
 }
 unsigned int key_get_shift_status(void) { return 0; }
 fix key_down_time(int scancode) { (void)scancode; return 0; }

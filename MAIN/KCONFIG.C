@@ -2313,7 +2313,7 @@ void controls_read_all()
 
 	pitch_limit = FrameTime/2;
 	heading_limit = FrameTime;
-#if defined(MACOS)
+#if defined(MACOS) && !defined(ESP32)
 	if (Config_control_type == CONTROL_MOUSE) {
 		/* Preserve the accelerated SDL mouse range instead of reducing it
 		 * back to the keyboard/joystick rotational-thrust limit. */

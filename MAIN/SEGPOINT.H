@@ -39,7 +39,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 
 #include "3d.h"
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 extern	g3s_point	*Segment_points;
 #else
 extern	g3s_point	Segment_points[];

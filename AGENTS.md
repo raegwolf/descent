@@ -11,7 +11,8 @@ non-commercial, royalty-free use.
 1. Port Descent to macOS. Use SDL as the platform boundary and preserve the
    original 320x200 indexed-color rendering model. The first milestone is a
    native `.app` that reaches a running, keyboard-controlled main menu.
-2. After the macOS port is working, port the portable core to Arduino ESP32.
+2. After the macOS port is working, port the portable core to ESP32 using the
+   Arduino framework.
    Keep platform-independent code free of Cocoa, Objective-C, and direct SDL
    dependencies so that the SDL boundary can later be replaced by an ESP32
    display/input boundary.

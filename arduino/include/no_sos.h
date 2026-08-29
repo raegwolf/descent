@@ -1,3 +1,0 @@
-#ifndef DESCENT_ARDUINO_NO_SOS_H
-#define DESCENT_ARDUINO_NO_SOS_H
-#endif

@@ -393,14 +393,14 @@ hashtable AllDigiSndNames;
 int Num_bitmap_files = 0;
 int Num_sound_files = 0;
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 digi_sound *GameSounds;
 static int *SoundOffset;
 #else
 digi_sound GameSounds[MAX_SOUND_FILES];
 int SoundOffset[MAX_SOUND_FILES];
 #endif
-#if defined(ARDUINO)
+#if defined(ESP32)
 grs_bitmap *GameBitmaps;
 #else
 grs_bitmap GameBitmaps[MAX_BITMAP_FILES];
@@ -408,7 +408,7 @@ grs_bitmap GameBitmaps[MAX_BITMAP_FILES];
 
 int Num_bitmap_files_new = 0;
 int Num_sound_files_new = 0;
-#if defined(ARDUINO)
+#if defined(ESP32)
 static BitmapFile *AllBitmaps;
 static SoundFile *AllSounds;
 #else
@@ -424,7 +424,7 @@ int piggy_low_memory = 0;
 int Piggy_bitmap_cache_size = 0;
 int Piggy_bitmap_cache_next = 0;
 ubyte * Piggy_bitmap_cache_data = NULL;
-#if defined(ARDUINO)
+#if defined(ESP32)
 static int *GameBitmapOffset;
 static ubyte *GameBitmapFlags;
 #else
@@ -433,18 +433,18 @@ static ubyte GameBitmapFlags[MAX_BITMAP_FILES];
 #endif
 ushort GameBitmapXlat[MAX_BITMAP_FILES];
 
-#if defined(ARDUINO)
-extern void *arduino_alloc_psram(unsigned int size);
+#if defined(ESP32)
+extern void *esp32_alloc_psram(unsigned int size);
 
-int arduino_init_piggy_storage(void)
+int esp32_init_piggy_storage(void)
 {
-	GameBitmaps = (grs_bitmap *)arduino_alloc_psram(sizeof(*GameBitmaps) * MAX_BITMAP_FILES);
-	GameSounds = (digi_sound *)arduino_alloc_psram(sizeof(*GameSounds) * MAX_SOUND_FILES);
-	SoundOffset = (int *)arduino_alloc_psram(sizeof(*SoundOffset) * MAX_SOUND_FILES);
-	AllBitmaps = (BitmapFile *)arduino_alloc_psram(sizeof(*AllBitmaps) * MAX_BITMAP_FILES);
-	AllSounds = (SoundFile *)arduino_alloc_psram(sizeof(*AllSounds) * MAX_SOUND_FILES);
-	GameBitmapOffset = (int *)arduino_alloc_psram(sizeof(*GameBitmapOffset) * MAX_BITMAP_FILES);
-	GameBitmapFlags = (ubyte *)arduino_alloc_psram(sizeof(*GameBitmapFlags) * MAX_BITMAP_FILES);
+	GameBitmaps = (grs_bitmap *)esp32_alloc_psram(sizeof(*GameBitmaps) * MAX_BITMAP_FILES);
+	GameSounds = (digi_sound *)esp32_alloc_psram(sizeof(*GameSounds) * MAX_SOUND_FILES);
+	SoundOffset = (int *)esp32_alloc_psram(sizeof(*SoundOffset) * MAX_SOUND_FILES);
+	AllBitmaps = (BitmapFile *)esp32_alloc_psram(sizeof(*AllBitmaps) * MAX_BITMAP_FILES);
+	AllSounds = (SoundFile *)esp32_alloc_psram(sizeof(*AllSounds) * MAX_SOUND_FILES);
+	GameBitmapOffset = (int *)esp32_alloc_psram(sizeof(*GameBitmapOffset) * MAX_BITMAP_FILES);
+	GameBitmapFlags = (ubyte *)esp32_alloc_psram(sizeof(*GameBitmapFlags) * MAX_BITMAP_FILES);
 	return GameBitmaps != NULL && GameSounds != NULL && SoundOffset != NULL &&
 		AllBitmaps != NULL && AllSounds != NULL && GameBitmapOffset != NULL &&
 		GameBitmapFlags != NULL;

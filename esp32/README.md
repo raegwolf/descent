@@ -1,7 +1,8 @@
-# Descent for Arduino ESP32-S3
+# Descent for ESP32-S3
 
 This PlatformIO project builds the released Descent 1.5 gameplay engine as an
-Arduino application for an ESP32-S3 with 16 MB flash and 8 MB octal PSRAM
+ESP32 application using the Arduino framework on an ESP32-S3 with 16 MB flash
+and 8 MB octal PSRAM
 (N16R8). It boots directly into Level 1 and presents the original indexed
 320x200 framebuffer, centred at native resolution on a 480x320 ILI9488 SPI
 display.
@@ -51,7 +52,7 @@ logic.
 From the repository root:
 
 ```sh
-cd arduino
+cd esp32
 ~/.platformio/penv/bin/pio run
 ~/.platformio/penv/bin/pio run --target upload
 ~/.platformio/penv/bin/pio device monitor --baud 115200
@@ -79,13 +80,13 @@ Hardware or data errors are also printed over serial and displayed on the TFT.
 
 ## Port structure
 
-`src/main.cpp` is the Arduino boundary: TFT presentation, SD mounting, PSRAM
-allocation, and the FreeRTOS game task. `src/platform_arduino.c` supplies the
-no-input/no-sound Arduino platform services. `tools/stage_engine.py` builds an
+`src/main.cpp` is the ESP32 boundary: TFT presentation, SD mounting, PSRAM
+allocation, and the FreeRTOS game task. `src/platform_esp32.c` supplies the
+no-input/no-sound ESP32 platform services. `tools/stage_engine.py` builds an
 explicit list of the original C engine modules and portable replacements; DOS
 assembly and networking modules are never compiled.
 
 The engine still renders 8-bit indexed pixels. At presentation time the shim
 converts a frame to RGB565 in PSRAM and transfers it over 40 MHz SPI. Large
-historical global tables are also allocated from PSRAM under `ARDUINO`, leaving
+historical global tables are also allocated from PSRAM under `ESP32`, leaving
 internal RAM available for the runtime and game task.

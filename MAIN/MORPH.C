@@ -146,18 +146,18 @@ static char rcsid[] = "$Id: morph.c 2.1 1995/02/27 18:26:33 john Exp $";
 #include "mono.h"
 #include "bm.h"
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 morph_data *morph_objects;
 #else
 morph_data morph_objects[MAX_MORPH_OBJECTS];
 #endif
 
-#if defined(ARDUINO)
-extern void *arduino_alloc_psram(unsigned int size);
+#if defined(ESP32)
+extern void *esp32_alloc_psram(unsigned int size);
 
-int arduino_init_morph_storage(void)
+int esp32_init_morph_storage(void)
 {
-	morph_objects = (morph_data *)arduino_alloc_psram(sizeof(*morph_objects) * MAX_MORPH_OBJECTS);
+	morph_objects = (morph_data *)esp32_alloc_psram(sizeof(*morph_objects) * MAX_MORPH_OBJECTS);
 	return morph_objects != NULL;
 }
 #endif

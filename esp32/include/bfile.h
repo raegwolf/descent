@@ -1,5 +1,5 @@
-#ifndef DESCENT_ARDUINO_BFILE_H
-#define DESCENT_ARDUINO_BFILE_H
+#ifndef DESCENT_ESP32_BFILE_H
+#define DESCENT_ESP32_BFILE_H
 #include <stdio.h>
 typedef FILE BFILE;
 #define bfopen fopen

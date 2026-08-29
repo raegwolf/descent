@@ -1,12 +1,12 @@
-#ifndef DESCENT_ARDUINO_COMPAT_H
-#define DESCENT_ARDUINO_COMPAT_H
+#ifndef DESCENT_ESP32_COMPAT_H
+#define DESCENT_ESP32_COMPAT_H
 
 /*
  * The macOS work established portable C paths that replace DOS assembly and
- * 16-bit compiler behavior. ARDUINO selects those paths while the ESP32 shim
+ * 16-bit compiler behavior. ESP32 selects those paths while the ESP32 shim
  * supplies its own display, clock, filesystem, and no-device implementations.
  */
-#if defined(ARDUINO) && defined(DESCENT_ENGINE_BUILD) && !defined(MACOS)
+#if defined(ESP32) && defined(DESCENT_ENGINE_BUILD) && !defined(MACOS)
 #define MACOS 1
 #endif
 

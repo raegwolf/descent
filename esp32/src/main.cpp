@@ -6,7 +6,7 @@
 #include <esp_heap_caps.h>
 #include <unistd.h>
 
-#include "arduino_bridge.h"
+#include "esp32_bridge.h"
 
 namespace {
 
@@ -58,12 +58,12 @@ void gameTask(void *)
 
     timer_init();
     key_init();
-    if (!arduino_init_world_storage() || !arduino_init_ai_storage() ||
-        !arduino_init_object_storage() || !arduino_init_polygon_storage() ||
-        !arduino_init_automap_storage() || !arduino_init_morph_storage() ||
-        !arduino_init_piggy_storage() || !arduino_init_bitmap_storage() ||
-        !arduino_init_lighting_storage() || !arduino_init_robot_storage() ||
-        !arduino_init_effect_storage())
+    if (!esp32_init_world_storage() || !esp32_init_ai_storage() ||
+        !esp32_init_object_storage() || !esp32_init_polygon_storage() ||
+        !esp32_init_automap_storage() || !esp32_init_morph_storage() ||
+        !esp32_init_piggy_storage() || !esp32_init_bitmap_storage() ||
+        !esp32_init_lighting_storage() || !esp32_init_robot_storage() ||
+        !esp32_init_effect_storage())
         stopWithMessage("Could not allocate engine tables in PSRAM");
     Serial.println("Loading the Descent engine...");
     if (inferno_init(6, arguments) != 0)
@@ -84,17 +84,17 @@ void gameTask(void *)
 
 }  // namespace
 
-extern "C" void *arduino_alloc_psram(unsigned int size)
+extern "C" void *esp32_alloc_psram(unsigned int size)
 {
     return heap_caps_calloc(1, size, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
 }
 
-extern "C" void arduino_free_psram(void *buffer)
+extern "C" void esp32_free_psram(void *buffer)
 {
     heap_caps_free(buffer);
 }
 
-extern "C" void arduino_present_indexed(const unsigned char *pixels,
+extern "C" void esp32_present_indexed(const unsigned char *pixels,
                                           const unsigned char *palette,
                                           int width, int height)
 {
@@ -114,12 +114,12 @@ extern "C" void arduino_present_indexed(const unsigned char *pixels,
     yield();
 }
 
-extern "C" uint32_t arduino_milliseconds(void)
+extern "C" uint32_t esp32_milliseconds(void)
 {
     return millis();
 }
 
-extern "C" void arduino_delay_ms(unsigned int milliseconds)
+extern "C" void esp32_delay_ms(unsigned int milliseconds)
 {
     delay(milliseconds);
 }

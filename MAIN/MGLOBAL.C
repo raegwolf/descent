@@ -181,7 +181,7 @@ static char rcsid[] = "$Id: mglobal.c 2.2 1995/03/14 18:24:37 john Exp $";
 #pragma on (unreferenced)
 
 // Global array of vertices, common to one mine.
-#if defined(ARDUINO)
+#if defined(ESP32)
 vms_vector *Vertices;
 g3s_point *Segment_points;
 #else
@@ -196,7 +196,7 @@ fix GameTime = 0;		//	Time in game, in seconds
 int FrameCount = 0;
 
 //	This is the global mine which create_new_mine returns.
-#if defined(ARDUINO)
+#if defined(ESP32)
 segment	*Segments;
 #else
 segment	Segments[MAX_SEGMENTS];
@@ -259,14 +259,14 @@ int	Detail_level=NUM_DETAIL_LEVELS-2;		//	Detail level in 0..NUM_DETAIL_LEVELS-1
 
 char	Menu_pcx_name[13];
 
-#if defined(ARDUINO)
-extern void *arduino_alloc_psram(unsigned int size);
+#if defined(ESP32)
+extern void *esp32_alloc_psram(unsigned int size);
 
-int arduino_init_world_storage(void)
+int esp32_init_world_storage(void)
 {
-	Vertices = (vms_vector *)arduino_alloc_psram(sizeof(*Vertices) * MAX_VERTICES);
-	Segment_points = (g3s_point *)arduino_alloc_psram(sizeof(*Segment_points) * MAX_VERTICES);
-	Segments = (segment *)arduino_alloc_psram(sizeof(*Segments) * MAX_SEGMENTS);
+	Vertices = (vms_vector *)esp32_alloc_psram(sizeof(*Vertices) * MAX_VERTICES);
+	Segment_points = (g3s_point *)esp32_alloc_psram(sizeof(*Segment_points) * MAX_VERTICES);
+	Segments = (segment *)esp32_alloc_psram(sizeof(*Segments) * MAX_SEGMENTS);
 	return Vertices != NULL && Segment_points != NULL && Segments != NULL;
 }
 #endif

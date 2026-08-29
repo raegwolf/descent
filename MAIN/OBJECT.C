@@ -414,7 +414,7 @@ static short free_obj_list[MAX_OBJECTS];
 object	Object_minus_one;
 #endif
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 object *Objects;
 #else
 object Objects[MAX_OBJECTS];
@@ -434,12 +434,12 @@ int Highest_ever_object_index=0;
 
 int print_object_info = 0;
 
-#if defined(ARDUINO)
-extern void *arduino_alloc_psram(unsigned int size);
+#if defined(ESP32)
+extern void *esp32_alloc_psram(unsigned int size);
 
-int arduino_init_object_storage(void)
+int esp32_init_object_storage(void)
 {
-	Objects = (object *)arduino_alloc_psram(sizeof(*Objects) * MAX_OBJECTS);
+	Objects = (object *)esp32_alloc_psram(sizeof(*Objects) * MAX_OBJECTS);
 	return Objects != NULL;
 }
 #endif

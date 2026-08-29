@@ -105,7 +105,7 @@ typedef struct eclip {
 } eclip;
 
 extern int Num_effects;
-#if defined(ARDUINO)
+#if defined(ESP32)
 extern eclip *Effects;
 #else
 extern eclip Effects[MAX_EFFECTS];

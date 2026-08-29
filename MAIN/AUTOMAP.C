@@ -275,7 +275,7 @@ ubyte Automap_visited[MAX_SEGMENTS];
 static int Num_edges=0;
 static int Max_edges;		//set each frame
 static int Highest_edge_index = -1;
-#if defined(ARDUINO)
+#if defined(ESP32)
 static Edge_info *Edges;
 static short *DrawingListBright;
 #else
@@ -319,13 +319,13 @@ static fix Automap_farthest_dist = (F1_0 * 20 * 50);		// 50 segments away
 static vms_matrix	ViewMatrix;
 static fix ViewDist=0;
 
-#if defined(ARDUINO)
-extern void *arduino_alloc_psram(unsigned int size);
+#if defined(ESP32)
+extern void *esp32_alloc_psram(unsigned int size);
 
-int arduino_init_automap_storage(void)
+int esp32_init_automap_storage(void)
 {
-	Edges = (Edge_info *)arduino_alloc_psram(sizeof(*Edges) * MAX_EDGES);
-	DrawingListBright = (short *)arduino_alloc_psram(sizeof(*DrawingListBright) * MAX_EDGES);
+	Edges = (Edge_info *)esp32_alloc_psram(sizeof(*Edges) * MAX_EDGES);
+	DrawingListBright = (short *)esp32_alloc_psram(sizeof(*DrawingListBright) * MAX_EDGES);
 	return Edges != NULL && DrawingListBright != NULL;
 }
 #endif

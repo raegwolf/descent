@@ -258,7 +258,7 @@ typedef struct {
 
 #define	MAX_POINT_SEGS	2500
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 extern	point_seg	*Point_segs;
 #else
 extern	point_seg	Point_segs[MAX_POINT_SEGS];

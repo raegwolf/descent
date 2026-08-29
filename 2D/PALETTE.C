@@ -161,7 +161,7 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "fix.h"
 #include "key.h"
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 /* The ESP32 display adapter consumes the currently visible 6-bit palette. */
 #define outp(port, value) ((void)(port), (void)(value))
 #define inp(port) (0)
@@ -172,7 +172,7 @@ extern int gr_installed;
 ubyte gr_palette[256*3];
 ubyte gr_current_pal[256*3];
 ubyte gr_fade_table[256*34];
-#if defined(ARDUINO)
+#if defined(ESP32)
 ubyte gr_visible_pal[256*3];
 #endif
 
@@ -373,21 +373,21 @@ void gr_palette_step_up( int r, int g, int b )
 		temp = (int)(*p++) + r + gr_palette_gamma;
 		if (temp<0) temp=0;
 		else if (temp>63) temp=63;
-#if defined(ARDUINO)
+#if defined(ESP32)
 		gr_visible_pal[i * 3] = temp;
 #endif
 		outp( 0x3c9, temp );
 		temp = (int)(*p++) + g + gr_palette_gamma;
 		if (temp<0) temp=0;
 		else if (temp>63) temp=63;
-#if defined(ARDUINO)
+#if defined(ESP32)
 		gr_visible_pal[i * 3 + 1] = temp;
 #endif
 		outp( 0x3c9, temp );
 		temp = (int)(*p++) + b + gr_palette_gamma;
 		if (temp<0) temp=0;
 		else if (temp>63) temp=63;
-#if defined(ARDUINO)
+#if defined(ESP32)
 		gr_visible_pal[i * 3 + 2] = temp;
 #endif
 		outp( 0x3c9, temp );
@@ -400,7 +400,7 @@ void gr_palette_clear()
 	outp( 0x3c6, 0xff );
 	outp( 0x3c8, 0 );
 	for (i=0; i<768; i++ )	{
-#if defined(ARDUINO)
+#if defined(ESP32)
 		gr_visible_pal[i] = 0;
 #endif
 		outp( 0x3c9, 0 );
@@ -418,7 +418,7 @@ void gr_palette_load( ubyte * pal )
 		c = pal[i] + gr_palette_gamma;
 		if ( c > 63 ) c = 63;
 		outp( 0x3c9,c);
-#if defined(ARDUINO)
+#if defined(ESP32)
 		gr_visible_pal[i] = c;
 #endif
  		gr_current_pal[i] = pal[i];
@@ -456,7 +456,7 @@ int gr_palette_fade_out(ubyte *pal, int nsteps, int allow_keys )
 				fade_palette[i] = 0;
 			c = f2i(fade_palette[i]);
 			if ( c > 63 ) c = 63;
-#if defined(ARDUINO)
+#if defined(ESP32)
 			gr_visible_pal[i] = c;
 #endif
 			outp( 0x3c9, c );								
@@ -493,7 +493,7 @@ int gr_palette_fade_in(ubyte *pal, int nsteps, int allow_keys)
 				fade_palette[i] = i2f(pal[i]+gr_palette_gamma);
 			c = f2i(fade_palette[i]);
 			if ( c > 63 ) c = 63;
-#if defined(ARDUINO)
+#if defined(ESP32)
 			gr_visible_pal[i] = c;
 #endif
 			outp( 0x3c9, c );								
@@ -522,7 +522,7 @@ void gr_make_cthru_table(ubyte * table, ubyte r, ubyte g, ubyte b )
 void gr_palette_read(ubyte * palette)
 {
 	int i;
-#if defined(ARDUINO)
+#if defined(ESP32)
 	for (i=0; i<768; i++)
 		palette[i] = gr_visible_pal[i];
 #else

@@ -108,14 +108,14 @@ int	N_robot_types = 0;
 int	N_robot_joints = 0;
 
 //	Robot stuff
-#if defined(ARDUINO)
+#if defined(ESP32)
 robot_info *Robot_info;
 
-extern void *arduino_alloc_psram(unsigned int size);
+extern void *esp32_alloc_psram(unsigned int size);
 
-int arduino_init_robot_storage(void)
+int esp32_init_robot_storage(void)
 {
-	Robot_info = (robot_info *)arduino_alloc_psram(sizeof(*Robot_info) * MAX_ROBOT_TYPES);
+	Robot_info = (robot_info *)esp32_alloc_psram(sizeof(*Robot_info) * MAX_ROBOT_TYPES);
 	return Robot_info != NULL;
 }
 #else

@@ -1,5 +1,5 @@
-#ifndef DESCENT_ARDUINO_PSSTRING_H
-#define DESCENT_ARDUINO_PSSTRING_H
+#ifndef DESCENT_ESP32_PSSTRING_H
+#define DESCENT_ESP32_PSSTRING_H
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>

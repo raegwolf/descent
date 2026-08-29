@@ -154,14 +154,14 @@ int	use_beam;		//flag for beam effect
 
 int	Do_dynamic_light=1;
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 fix	*Dynamic_light;
 
-extern void *arduino_alloc_psram(unsigned int size);
+extern void *esp32_alloc_psram(unsigned int size);
 
-int arduino_init_lighting_storage(void)
+int esp32_init_lighting_storage(void)
 {
-	Dynamic_light = (fix *)arduino_alloc_psram(sizeof(*Dynamic_light) * MAX_VERTICES);
+	Dynamic_light = (fix *)esp32_alloc_psram(sizeof(*Dynamic_light) * MAX_VERTICES);
 	return Dynamic_light != NULL;
 }
 #else

@@ -89,7 +89,7 @@ for relative_name in ENGINE_SOURCES:
     source = repository / relative_name
     destination = stage_dir / Path(relative_name).with_suffix(".c")
     encoded = (b"#define DESCENT_ENGINE_BUILD 1\n"
-               b"#include \"arduino_compat.h\"\n" + sanitized_content(source))
+               b"#include \"esp32_compat.h\"\n" + sanitized_content(source))
     destination.parent.mkdir(parents=True, exist_ok=True)
     if not destination.exists() or destination.read_bytes() != encoded:
         destination.write_bytes(encoded)

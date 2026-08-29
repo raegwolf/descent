@@ -251,7 +251,7 @@ extern int Num_tmaps;
 extern int TmapList[MAX_TEXTURES];
 #endif
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 extern tmap_info *TmapInfo;
 #else
 extern tmap_info TmapInfo[MAX_TEXTURES];

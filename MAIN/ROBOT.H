@@ -185,7 +185,7 @@ typedef struct robot_info {
 extern char	Robot_names[MAX_ROBOT_TYPES][ROBOT_NAME_LENGTH];
 
 //the array of robots types
-#if defined(ARDUINO)
+#if defined(ESP32)
 extern robot_info *Robot_info;
 #else
 extern robot_info Robot_info[];			// Robot info for AI system, loaded from bitmaps.tbl.

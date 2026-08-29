@@ -81,7 +81,7 @@ typedef struct morph_data {
 
 #define MAX_MORPH_OBJECTS 5
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 extern morph_data *morph_objects;
 #else
 extern morph_data morph_objects[];

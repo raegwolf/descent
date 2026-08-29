@@ -463,7 +463,7 @@ extern int Object_next_signature;		// The next signature for the next newly crea
 extern ubyte CollisionResult[MAX_OBJECT_TYPES][MAX_OBJECT_TYPES];
 // ie CollisionResult[a][b]==  what happens to a when it collides with b
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 extern object *Objects;
 #else
 extern object Objects[];
@@ -860,7 +860,7 @@ extern int Object_next_signature;		// The next signature for the next newly crea
 extern ubyte CollisionResult[MAX_OBJECT_TYPES][MAX_OBJECT_TYPES];
 // ie CollisionResult[a][b]==  what happens to a when it collides with b
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 extern object *Objects;
 #else
 extern object Objects[];

@@ -117,14 +117,14 @@ static char rcsid[] = "$Id: effects.c 2.0 1995/02/27 11:32:49 john Exp $";
 #include "error.h"
 
 int Num_effects;
-#if defined(ARDUINO)
+#if defined(ESP32)
 eclip *Effects;
 
-extern void *arduino_alloc_psram(unsigned int size);
+extern void *esp32_alloc_psram(unsigned int size);
 
-int arduino_init_effect_storage(void)
+int esp32_init_effect_storage(void)
 {
-	Effects = (eclip *)arduino_alloc_psram(sizeof(*Effects) * MAX_EFFECTS);
+	Effects = (eclip *)esp32_alloc_psram(sizeof(*Effects) * MAX_EFFECTS);
 	return Effects != NULL;
 }
 #else

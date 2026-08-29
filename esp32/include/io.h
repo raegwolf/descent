@@ -1,5 +1,5 @@
-#ifndef DESCENT_ARDUINO_IO_H
-#define DESCENT_ARDUINO_IO_H
+#ifndef DESCENT_ESP32_IO_H
+#define DESCENT_ESP32_IO_H
 #include <unistd.h>
 int filelength(int fd);
 void _makepath(char *path, const char *drive, const char *dir,

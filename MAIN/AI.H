@@ -162,7 +162,7 @@ extern fix	Last_teleport_time;
 extern fix 	Boss_cloak_duration;
 extern int Boss_dying;
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 extern ai_local	*Ai_local_info;
 #else
 extern ai_local	Ai_local_info[MAX_OBJECTS];

@@ -135,7 +135,7 @@ static char rcsid[] = "$Id: polyobj.c 2.1 1995/05/26 16:10:37 john Exp $";
 #include "piggy.h"
 #endif
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 polymodel *Polygon_models;
 #else
 polymodel Polygon_models[MAX_POLYGON_MODELS];	// = {&bot11,&bot17,&robot_s2,&robot_b2,&bot11,&bot17,&robot_s2,&robot_b2};
@@ -144,19 +144,19 @@ polymodel Polygon_models[MAX_POLYGON_MODELS];	// = {&bot11,&bot17,&robot_s2,&rob
 int N_polygon_models = 0;
 
 #define MAX_POLYGON_VECS 1000
-#if defined(ARDUINO)
+#if defined(ESP32)
 g3s_point *robot_points;
 #else
 g3s_point robot_points[MAX_POLYGON_VECS];
 #endif
 
-#if defined(ARDUINO)
-extern void *arduino_alloc_psram(unsigned int size);
+#if defined(ESP32)
+extern void *esp32_alloc_psram(unsigned int size);
 
-int arduino_init_polygon_storage(void)
+int esp32_init_polygon_storage(void)
 {
-	Polygon_models = (polymodel *)arduino_alloc_psram(sizeof(*Polygon_models) * MAX_POLYGON_MODELS);
-	robot_points = (g3s_point *)arduino_alloc_psram(sizeof(*robot_points) * MAX_POLYGON_VECS);
+	Polygon_models = (polymodel *)esp32_alloc_psram(sizeof(*Polygon_models) * MAX_POLYGON_MODELS);
+	robot_points = (g3s_point *)esp32_alloc_psram(sizeof(*robot_points) * MAX_POLYGON_VECS);
 	return Polygon_models != NULL && robot_points != NULL;
 }
 #endif

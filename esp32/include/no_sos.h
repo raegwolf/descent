@@ -1,0 +1,3 @@
+#ifndef DESCENT_ESP32_NO_SOS_H
+#define DESCENT_ESP32_NO_SOS_H
+#endif

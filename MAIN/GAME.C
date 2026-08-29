@@ -1764,7 +1764,7 @@ void game_draw_hud_stuff()
 	arcade_frame_info();
 	#endif
 
-#if defined(MACOS)
+#if defined(MACOS) && !defined(ESP32)
 	if (show_fps || framerate_on)
 		show_framerate();
 #elif !defined(RELEASE)

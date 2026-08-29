@@ -211,19 +211,19 @@ COPYRIGHT 1993-1998 PARALLAX SOFTWARE CORPORATION.  ALL RIGHTS RESERVED.
 #include "palette.h"
 #include "dpmi.h"
 
-#if defined(ARDUINO)
+#if defined(ESP32)
 
 /*
- * Arduino/ESP32 graphics boundary.
+ * ESP32 graphics boundary.
  *
  * The original renderer continues to draw an indexed 320x200 image.  The
- * Arduino application owns the physical display and converts this buffer at
+ * ESP32 application owns the physical display and converts this buffer at
  * presentation time.  Keeping that conversion outside the engine preserves
  * the DOS rendering model and avoids any display-library dependency here.
  */
-extern void *arduino_alloc_psram(unsigned int size);
-extern void arduino_free_psram(void *buffer);
-extern void arduino_present_indexed(const unsigned char *pixels,
+extern void *esp32_alloc_psram(unsigned int size);
+extern void esp32_free_psram(void *buffer);
+extern void esp32_present_indexed(const unsigned char *pixels,
 	const unsigned char *palette, int width, int height);
 
 unsigned char *gr_video_memory = NULL;
@@ -235,7 +235,7 @@ extern ubyte gr_visible_pal[256 * 3];
 void gr_sync_display(void)
 {
 	if (gr_video_memory != NULL && grd_curscreen != NULL)
-		arduino_present_indexed(gr_video_memory, gr_visible_pal,
+		esp32_present_indexed(gr_video_memory, gr_visible_pal,
 			grd_curscreen->sc_w, grd_curscreen->sc_h);
 }
 
@@ -271,7 +271,7 @@ int gr_close(void)
 		grd_curscreen = NULL;
 	}
 	if (gr_video_memory != NULL) {
-		arduino_free_psram(gr_video_memory);
+		esp32_free_psram(gr_video_memory);
 		gr_video_memory = NULL;
 	}
 	gr_installed = 0;
@@ -309,12 +309,12 @@ int gr_init(int mode)
 
 	if (gr_installed)
 		return 1;
-	gr_video_memory = (unsigned char *)arduino_alloc_psram(320U * 400U);
+	gr_video_memory = (unsigned char *)esp32_alloc_psram(320U * 400U);
 	if (gr_video_memory == NULL)
 		return 10;
 	grd_curscreen = (grs_screen *)malloc(sizeof(grs_screen));
 	if (grd_curscreen == NULL) {
-		arduino_free_psram(gr_video_memory);
+		esp32_free_psram(gr_video_memory);
 		gr_video_memory = NULL;
 		return 10;
 	}
@@ -866,5 +866,5 @@ int gr_check_mode(int mode)
 	return 11;
 }
 
-#endif /* ARDUINO */
+#endif /* ESP32 */
 
