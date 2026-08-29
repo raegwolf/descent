@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+project_dir="$repo_dir/esp32"
 
 if [[ -n "${PIO_BIN:-}" ]]; then
     pio_bin=$PIO_BIN
