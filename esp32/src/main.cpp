@@ -821,8 +821,13 @@ extern "C" void esp32_present_indexed(const unsigned char *pixels,
         for (size_t pixel = 0; pixel < pixelCount; ++pixel)
             strip[pixel] = indexedColor(palette, source[pixel]);
         display.dmaWait();
+        /* indexedColor() has already put every RGB565 pixel into the byte
+         * order required by SPI DMA.  Preserve the esp32-test contract by
+         * selecting TFT_eSPI's const overload; the mutable overload observes
+         * setSwapBytes(true) and would swap this strip a second time. */
         display.pushImageDMA(0, kGameTop + sourceY, kGameWidth,
-                             stripHeight, strip);
+                             stripHeight,
+                             static_cast<const uint16_t *>(strip));
         stripIndex ^= 1;
     }
     display.dmaWait();
