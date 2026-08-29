@@ -24,6 +24,7 @@ typedef struct joystick_state {
     uint8_t menu_queue[MENU_QUEUE_SIZE];
     uint8_t menu_head;
     uint8_t menu_tail;
+    uint8_t menu_select_pending;
 } joystick_state;
 
 static joystick_state input;
@@ -134,10 +135,9 @@ void descent_joystick_update(
                                           input.offset[axis]);
     }
 
-    /* J1 is mounted opposite J2 in the enclosure, so only J2 needs its raw Y
-     * direction inverted to expose positive-up values. */
-    input.axis[DESCENT_JOYSTICK_RIGHT_Y] =
-        -input.axis[DESCENT_JOYSTICK_RIGHT_Y];
+    /* Account for J1's horizontal orientation in the enclosure. */
+    input.axis[DESCENT_JOYSTICK_LEFT_X] =
+        -input.axis[DESCENT_JOYSTICK_LEFT_X];
 
     for (button = 0; button < DESCENT_JOYSTICK_BUTTON_COUNT; ++button) {
         uint8_t mask = (uint8_t)(1U << button);
@@ -159,7 +159,9 @@ void descent_joystick_update(
                 input.buttons |= mask;
                 if (input.button_down_count[button] < UCHAR_MAX)
                     ++input.button_down_count[button];
-                queue_menu_input(DESCENT_MENU_INPUT_SELECT);
+                /* Selection must not be lost behind direction-repeat events
+                 * while a stick is held away from center. */
+                input.menu_select_pending = 1;
             } else {
                 input.buttons &= (uint8_t)~mask;
             }
@@ -174,6 +176,7 @@ void descent_joystick_flush(uint32_t now_ms)
 {
     unsigned int button;
     input.menu_head = input.menu_tail = 0;
+    input.menu_select_pending = 0;
     for (button = 0; button < DESCENT_JOYSTICK_BUTTON_COUNT; ++button)
         input.button_down_count[button] = 0;
     input.menu_direction[0] = (int8_t)menu_direction_for_stick(0);
@@ -215,6 +218,8 @@ unsigned int descent_joystick_take_button_down_count(unsigned int button)
 
 int descent_joystick_peek_menu_input(void)
 {
+    if (input.menu_select_pending)
+        return DESCENT_MENU_INPUT_SELECT;
     if (input.menu_head == input.menu_tail)
         return DESCENT_MENU_INPUT_NONE;
     return input.menu_queue[input.menu_head];
@@ -223,7 +228,9 @@ int descent_joystick_peek_menu_input(void)
 int descent_joystick_take_menu_input(void)
 {
     int event = descent_joystick_peek_menu_input();
-    if (event != DESCENT_MENU_INPUT_NONE)
+    if (event == DESCENT_MENU_INPUT_SELECT)
+        input.menu_select_pending = 0;
+    else if (event != DESCENT_MENU_INPUT_NONE)
         input.menu_head = (uint8_t)((input.menu_head + 1U) % MENU_QUEUE_SIZE);
     return event;
 }

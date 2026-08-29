@@ -48,7 +48,7 @@ The HOG is 2,339,773 bytes and the PIG is 5,092,871 bytes. Together they are
 factory application slot instead of two OTA slots. OTA updating is not
 available in this bring-up layout; serial flashing remains available.
 
-The verified linked application is 8,065,837 bytes, 51.3% of the 15 MiB slot.
+The verified linked application is 8,065,901 bytes, 51.3% of the 15 MiB slot.
 Changing either resource automatically rebuilds its linked object.
 
 Each embedded archive is independently aligned to a 4-byte flash boundary.
