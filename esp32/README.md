@@ -1,92 +1,76 @@
-# Descent for ESP32-S3
+# Descent ESP32-S3 direct Level 1 bring-up
 
-This PlatformIO project builds the released Descent 1.5 gameplay engine as an
-ESP32 application using the Arduino framework on an ESP32-S3 with 16 MB flash
-and 8 MB octal PSRAM
-(N16R8). It boots directly into Level 1 and presents the original indexed
-320x200 framebuffer, centred at native resolution on a 480x320 ILI9488 SPI
-display.
+This PlatformIO target boots the shareware game directly into Level 1. It
+skips the title screens, briefing, pilot UI, and main menu, using the same
+direct-start sequence as the macOS port: initialize the engine, create the
+automatic `pilot` state in memory, suppress briefings, call `StartNewGame(1)`,
+and enter the game loop.
 
-The current milestone intentionally has no keyboard, joystick, mouse, sound,
-music, serial multiplayer, or networking. With no input mapping the game runs
-but cannot be controlled.
+Both `resources/descent.hog` and `resources/descent.pig` are linked into the
+firmware and read directly from memory-mapped flash. No SD card or writable
+player/config filesystem is required. The source and data remain subject to
+the non-commercial licence in the repository `README.TXT`.
 
-An Arduino Uno cannot run this project: it does not have enough RAM, flash, or
-CPU capacity. The red-screen Uno example that was previously in this directory
-has been replaced by the ESP32-S3 game port.
+## Display and hardware
 
-## Required hardware and data
+The target is configured for the tested ESP32-S3 N16R8 board: 16 MB flash,
+8 MB OPI PSRAM, and a 2.8-inch ILI9341 SPI display. The original indexed
+320x200 game framebuffer is shown at native resolution on the rotated 320x240
+panel. Rows 0-19 and 220-239 remain black, giving 20 pixels above and below.
 
-- ESP32-S3 N16R8 development board (16 MB flash, 8 MB OPI PSRAM)
-- 3.5-inch 480x320 SPI display using the ILI9488 controller
-- FAT-formatted SD card connected through the display module
-- User-supplied shareware `DESCENT.HOG` and `DESCENT.PIG` in the SD-card root
+The display configuration retains the validated `esp32-test` path:
 
-The game data is not compiled into this repository or firmware. The source and
-data remain subject to the non-commercial licence described in the repository
-`README.TXT` and the shareware documentation.
+- TFT_eSPI 2.5.43 with ILI9341 and FSPI
+- MOSI 11, SCLK 12, MISO 13, CS 10, DC 9, reset 8
+- 40 MHz SPI and `USE_FSPI_PORT=1`
+- the ESP32-S3 DMA callback fix in `tools/patch_tft_espi.py`
+- alternating byte-swapped 320x50 DMA strips in internal SRAM
 
-## Wiring
+Sound, networking, joystick, mouse, and keyboard input are disabled for this
+first-level display test.
 
-The TFT and SD card share MOSI, MISO, and SCLK. They have separate chip-select
-pins.
+## Flash layout
 
-| Display module | ESP32-S3 GPIO |
-| --- | ---: |
-| VCC | 5V |
-| GND | GND |
-| TFT CS | 10 |
-| TFT DC / RS | 9 |
-| TFT RESET / RST | 8 |
-| SDI / MOSI | 11 |
-| SDO / MISO | 13 |
-| SCK / CLK | 12 |
-| SD CS | 4 |
+The HOG is 2,339,773 bytes and the PIG is 5,092,871 bytes. Together they are
+7,432,644 bytes, before code. `partitions.csv` therefore uses one 15 MiB
+factory application slot instead of two OTA slots. OTA updating is not
+available in this bring-up layout; serial flashing remains available.
 
-ESP32-S3 GPIO uses 3.3 V logic. Do not apply 5 V to a GPIO. The listed display
-breakout accepts 5 V power, but its interface must be compatible with 3.3 V
-logic.
+The verified linked application is 8,055,521 bytes, 51.2% of the 15 MiB slot.
+Changing either resource automatically rebuilds its linked object.
 
-## Build and deploy
+Each embedded archive is independently aligned to a 4-byte flash boundary.
+This is required by the ESP32-S3 for DOS-era data paths that assume aligned
+32-bit access. The partition table also reserves a 64 KiB core-dump area for
+hardware bring-up diagnostics.
 
-From the repository root:
+## Fast profiles
+
+The default `custom_menu_only = no` stages the explicit engine source list and
+builds direct-Level-1 firmware. Set it to `yes` only for the earlier static
+menu/display diagnostic: that conditional omits the gameplay translation
+units and PIG object so it compiles quickly.
+
+## Build, upload, and monitor
+
+From `esp32/`:
 
 ```sh
-cd esp32
+./build-upload-monitor.sh
+```
+
+Pass a serial device if automatic selection is ambiguous:
+
+```sh
+./build-upload-monitor.sh /dev/cu.usbserial-XXXX
+```
+
+Build without uploading:
+
+```sh
 ~/.platformio/penv/bin/pio run
-~/.platformio/penv/bin/pio run --target upload
-~/.platformio/penv/bin/pio device monitor --baud 115200
 ```
 
-If `pio` is already on `PATH`, use `pio` instead of the full executable path.
-If PlatformIO cannot choose a USB port:
-
-```sh
-pio device list
-pio run --target upload --upload-port /dev/cu.usbmodemXXXX
-pio device monitor --port /dev/cu.usbmodemXXXX --baud 115200
-```
-
-The board resets and runs the firmware automatically after upload. Expected
-serial startup includes:
-
-```text
-Descent ESP32-S3 starting
-Loading the Descent engine...
-Starting Level 1 (input, sound and networking disabled)...
-```
-
-Hardware or data errors are also printed over serial and displayed on the TFT.
-
-## Port structure
-
-`src/main.cpp` is the ESP32 boundary: TFT presentation, SD mounting, PSRAM
-allocation, and the FreeRTOS game task. `src/platform_esp32.c` supplies the
-no-input/no-sound ESP32 platform services. `tools/stage_engine.py` builds an
-explicit list of the original C engine modules and portable replacements; DOS
-assembly and networking modules are never compiled.
-
-The engine still renders 8-bit indexed pixels. At presentation time the shim
-converts a frame to RGB565 in PSRAM and transfers it over 40 MHz SPI. Large
-historical global tables are also allocated from PSRAM under `ESP32`, leaving
-internal RAM available for the runtime and game task.
+At 115200 baud, startup reports hardware checks, embedded resource use, free
+internal/PSRAM before and after engine initialization, and the Level 1 start.
+Fatal bring-up errors are printed to serial and displayed on the TFT.

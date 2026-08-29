@@ -935,6 +935,22 @@ static int use_macos_pilot(void)
 	int i, j;
 
 	strcpy(Players[Player_num].callsign, "pilot");
+	#if defined(ESP32)
+	/* The direct-level flash build has no writable player filesystem. */
+	Config_joystick_sensitivity = 8;
+	Config_control_type = CONTROL_NONE;
+	for (i = 0; i < CONTROL_MAX_TYPES; i++)
+		for (j = 0; j < MAX_CONTROLS; j++)
+			kconfig_settings[i][j] = default_kconfig_settings[i][j];
+	kc_set_controls();
+	Player_default_difficulty = 1;
+	Auto_leveling_on = Default_leveling_on = 1;
+	n_highest_levels = 1;
+	highest_levels[0].shortname[0] = 0;
+	highest_levels[0].level_num = 1;
+	init_game_list();
+	return 1;
+	#else
 	if (read_player_file() == 0) {
 		Auto_leveling_on = Default_leveling_on;
 		WriteConfigFile();
@@ -958,6 +974,7 @@ static int use_macos_pilot(void)
 	if (write_player_file() != 0)
 		Error("Could not create automatic pilot 'pilot'.");
 	return 1;
+	#endif
 }
 #endif
 

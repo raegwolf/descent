@@ -1,6 +1,8 @@
 /* ESP32-S3 platform services for the original Descent engine. */
+#if !defined(DESCENT_MENU_ONLY) || !DESCENT_MENU_ONLY
 #define DESCENT_ENGINE_BUILD 1
 #include "esp32_compat.h"
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -142,7 +144,14 @@ int minit(void) { return 0; }
 void mclose(int n) { (void)n; }
 void mopen(int n,int r,int c,int w,int h,char *t) { (void)n;(void)r;(void)c;(void)w;(void)h;(void)t; }
 void mclear(int n) { (void)n; }
-void _mprintf(int n,char *format,...) { (void)n;(void)format; }
+void _mprintf(int n,char *format,...)
+{
+	va_list arguments;
+	(void)n;
+	va_start(arguments, format);
+	vprintf(format, arguments);
+	va_end(arguments);
+}
 void _mprintf_at(int n,int r,int c,char *format,...) { (void)n;(void)r;(void)c;(void)format; }
 void mputc(int n,char c) { (void)n;(void)c; }
 void mputc_at(int n,int r,int col,char c) { (void)n;(void)r;(void)col;(void)c; }
@@ -211,3 +220,4 @@ int _dos_findnext(struct find_t *result) { (void)result;return 1; }
 static unsigned int random_seed;
 int psrand(void) { return ((random_seed=random_seed*0x41c64e6dU+0x3039U)>>16)&0x7fff; }
 void pssrand(unsigned int seed) { random_seed=seed; }
+#endif /* !DESCENT_MENU_ONLY */

@@ -1607,7 +1607,13 @@ int inferno_init(int argc,char **argv)
 	//lib_init("INFERNO.DAT");
 
 	if (Inferno_verbose) printf ("%s", TXT_VERBOSE_1);
+	#if defined(ESP32)
+	printf("ESP32 init: reading configuration\n");
+	#endif
 	ReadConfigFile();
+	#if defined(ESP32)
+	printf("ESP32 init: configuration complete\n");
+	#endif
 	if (Inferno_verbose) printf( "\n%s", TXT_VERBOSE_2);
 
 	timer_init();
@@ -2087,8 +2093,14 @@ int inferno_init(int argc,char **argv)
 #endif
 
 	if (Inferno_verbose) printf( "\n%s\n\n", TXT_INITIALIZING_GRAPHICS);
+	#if defined(ESP32)
+	printf("ESP32 init: allocating indexed graphics\n");
+	#endif
 	if ((t=gr_init( SM_ORIGINAL ))!=0)
 		Error(TXT_CANT_INIT_GFX,t);
+	#if defined(ESP32)
+	printf("ESP32 init: indexed graphics complete\n");
+	#endif
 	// Load the palette stuff. Returns non-zero if error.
 	mprintf( (0, "Going into graphics mode..." ));
 	gr_set_mode(SM_320x200C);
@@ -2098,15 +2110,20 @@ int inferno_init(int argc,char **argv)
 #else
    gr_use_palette_table( "PALETTE.256" );
 #endif
+	#if defined(ESP32)
+	printf("ESP32 init: palette complete\n");
+	#endif
 	mprintf( (0, "\nInitializing font system..." ));
 	gamefont_init();	// must load after palette data loaded.
+	#if defined(ESP32)
+	printf("ESP32 init: fonts complete\n");
+	#endif
 #if defined(MACOS)
 	if (!start_to_new_game && !FindArg("-notitles"))
 		songs_play_song( SONG_TITLE, 1 );
 #else
 	songs_play_song( SONG_TITLE, 1 );
 #endif
-
 #if defined(MACOS)
 	#if defined(MACOS)
 	if ( !start_to_new_game && !FindArg( "-notitles" ) )
@@ -2123,6 +2140,9 @@ int inferno_init(int argc,char **argv)
 		show_title_screen( "logo.pcx", 1 );
 	}
 
+	#if defined(ESP32)
+	printf("ESP32 init: loading bitmap tables and PIG\n");
+	#endif
 #if defined(MACOS)
 	if (!start_to_new_game && !FindArg("-notitles"))
 #else
@@ -2170,6 +2190,9 @@ int inferno_init(int argc,char **argv)
 		bm_init();
 #endif
 #endif
+	#if defined(ESP32)
+	printf("ESP32 init: bitmap tables and PIG complete\n");
+	#endif
 
 	if ( FindArg( "-norun" ) )
 		return(0);

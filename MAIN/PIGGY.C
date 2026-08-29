@@ -782,7 +782,11 @@ int piggy_init()
 		//mprintf(( 0, "%d bytes of sound\n", sbytes ));
 	}
 
+	#if defined(ESP32)
+	SoundBits = (ubyte *)esp32_alloc_psram( sbytes + 16 );
+	#else
 	SoundBits = malloc( sbytes + 16 );
+	#endif
 	if ( SoundBits == NULL )
 		Error( "Not enough memory to load DESCENT.PIG sounds\n" );
 
@@ -792,7 +796,11 @@ int piggy_init()
 #else
 	Piggy_bitmap_cache_size = PIGGY_BUFFER_SIZE;
 #endif
+	#if defined(ESP32)
+	BitmapBits = (ubyte *)esp32_alloc_psram( Piggy_bitmap_cache_size );
+	#else
 	BitmapBits = malloc( Piggy_bitmap_cache_size );
+	#endif
 	if ( BitmapBits == NULL )
 		Error( "Not enough memory to load DESCENT.PIG bitmaps\n" );
 	Piggy_bitmap_cache_data = BitmapBits;	

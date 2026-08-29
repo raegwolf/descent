@@ -14,6 +14,7 @@ void esp32_present_indexed(const unsigned char *pixels,
                              int width, int height);
 uint32_t esp32_milliseconds(void);
 void esp32_delay_ms(unsigned int milliseconds);
+int esp32_check_heap_integrity(void);
 
 int inferno_init(int argc, char **argv);
 void function_loop(void);

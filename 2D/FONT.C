@@ -1414,6 +1414,9 @@ grs_font * gr_init_font( char * fontname )
 	CFILE *fontfile;
 	int file_id;
 	int datasize;		//size up to (but not including) palette
+	#if defined(ESP32)
+	extern int esp32_check_heap_integrity(void);
+	#endif
 
 	fontfile = cfopen(fontname, "rb");
 
@@ -1422,6 +1425,10 @@ grs_font * gr_init_font( char * fontname )
 
 	cfread(&file_id,sizeof(file_id),1,fontfile);
 	cfread(&datasize,sizeof(datasize),1,fontfile);
+	#if defined(ESP32)
+	printf("FONT %s: header id=%08x data=%d heap=%s\n", fontname,
+		file_id, datasize, esp32_check_heap_integrity() ? "ok" : "CORRUPT");
+	#endif
 
 #if defined(MACOS)
 	if (file_id != 0x4e465350) // PSFN
@@ -1435,6 +1442,10 @@ grs_font * gr_init_font( char * fontname )
 	int ofs = sizeof(grs_font) - sizeof(grs_font_disc);
 	grs_font_disc font_disc;
 	font = (grs_font *) malloc(datasize + ofs);
+	#if defined(ESP32)
+	printf("FONT %s: allocated %d bytes at %p\n", fontname,
+		datasize + ofs, font);
+	#endif
 #else
 	font = (grs_font *) malloc(datasize);
 #endif
@@ -1442,6 +1453,11 @@ grs_font * gr_init_font( char * fontname )
 #if defined(MACOS)
 	cfread(&font_disc,1,sizeof(grs_font_disc),fontfile);
 	cfread((ubyte *)font + sizeof(grs_font),1,datasize - sizeof(grs_font_disc),fontfile);
+	#if defined(ESP32)
+	printf("FONT %s: body copied; flags=%d data=%d widths=%d kern=%d\n",
+		fontname, font_disc.ft_flags, font_disc.ft_data,
+		font_disc.ft_widths, font_disc.ft_kerndata);
+	#endif
 
 	font->ft_w = font_disc.ft_w;
 	font->ft_h = font_disc.ft_h;
@@ -1471,6 +1487,10 @@ grs_font * gr_init_font( char * fontname )
 #endif
 
 		font->ft_chars = (unsigned char **)malloc( nchars * sizeof(unsigned char *));
+		#if defined(ESP32)
+		printf("FONT %s: data=%p widths=%p chars=%p count=%d\n", fontname,
+			font->ft_data, font->ft_widths, font->ft_chars, nchars);
+		#endif
 
 		ptr = font->ft_data;
 
@@ -1481,6 +1501,9 @@ grs_font * gr_init_font( char * fontname )
 			else
 				ptr += BITS_TO_BYTES(font->ft_widths[i]) * font->ft_h;
 		}
+		#if defined(ESP32)
+		printf("FONT %s: character pointers complete, end=%p\n", fontname, ptr);
+		#endif
 
 	} else  {
 
@@ -1510,6 +1533,9 @@ grs_font * gr_init_font( char * fontname )
 		int freq[256];
 
 		cfread(palette,3,256,fontfile);		//read the palette
+		#if defined(ESP32)
+		printf("FONT %s: palette copied\n", fontname);
+		#endif
 
 #if defined(MACOS)
 		build_colormap_good( palette, colormap, freq );
@@ -1518,8 +1544,16 @@ grs_font * gr_init_font( char * fontname )
 #endif
 	
 		colormap[255] = 255;
+		#if defined(ESP32)
+		printf("FONT %s: colormap complete; decoding %d pixels\n",
+			fontname, (int)(ptr-font->ft_data));
+		#endif
 
 		decode_data_asm(font->ft_data, ptr-font->ft_data, colormap, freq );
+		#if defined(ESP32)
+		printf("FONT %s: color decode complete; heap=%s\n", fontname,
+			esp32_check_heap_integrity() ? "ok" : "CORRUPT");
+		#endif
 	}
 
 	cfclose(fontfile);

@@ -247,7 +247,17 @@ void add_computed_color(int r, int g, int b, int color_num)
 		add_index = Num_computed_colors;
 		Num_computed_colors++;
 	} else
+	#if defined(MACOS)
+		/* Watcom's RAND_MAX was 32767, so the original expression
+		 * `(rand() * 32) >> 15` selected 0..31.  Modern libc rand()
+		 * returns up to INT_MAX; that multiplication overflows a 32-bit
+		 * int and corrupts memory through a wildly out-of-range index. */
+		add_index = (int)(((unsigned long long)(unsigned int)rand() *
+			MAX_COMPUTED_COLORS) /
+			((unsigned long long)RAND_MAX + 1ULL));
+	#else
 		add_index = (rand() * MAX_COMPUTED_COLORS) >> 15;
+	#endif
 
 	Computed_colors[add_index].r = r;
 	Computed_colors[add_index].g = g;

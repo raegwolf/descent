@@ -5,7 +5,6 @@ from pathlib import Path
 
 
 ENGINE_SOURCES = """
-CFILE/CFILE.C
 2D/PCX.C 2D/CANVAS.C 2D/BITMAP.C 2D/BITBLT.C
 2D/PIXEL.C 2D/GPIXEL.C 2D/RECT.C 2D/LINE.C
 2D/SCANLINE.C 2D/RLE.C 2D/FONT.C 2D/DISC.C
@@ -31,6 +30,15 @@ TEXMAP/NTMAP.C TEXMAP/TMAPFLAT.C TEXMAP/SCANLINE.C
 3D/ROD_C.C 3D/SETUP_C.C
 """.split()
 
+MENU_ONLY = env.GetProjectOption("custom_menu_only", "no").lower() in (
+    "1", "yes", "true", "on"
+)
+if MENU_ONLY:
+    # The bring-up loader reads the startup/menu assets directly from the HOG.
+    # Do not spend build time staging or compiling the gameplay engine yet.
+    ENGINE_SOURCES = []
+    env.Append(CPPDEFINES=[("DESCENT_MENU_ONLY", 1)])
+
 SOURCE_DIRS = [
     "INCLUDES", "CFILE", "BIOS", "2D", "3D", "FIX", "VECMAT", "MISC",
     "MEM", "IFF", "PSLIB", "TEXMAP", "MAIN",
@@ -41,7 +49,19 @@ repository = project_dir.parent
 stage_dir = Path(env.subst("$BUILD_DIR")) / "descent_engine_source"
 object_dir = Path(env.subst("$BUILD_DIR")) / "descent_engine_object"
 
-env.Append(CFLAGS=["-std=gnu89"])
+if not MENU_ONLY:
+    env.Append(CFLAGS=[
+        "-std=gnu89",
+        "-funsigned-char",
+        "-fwrapv",
+        "-fcommon",
+        "-fno-strict-aliasing",
+        "-Wno-unknown-pragmas",
+        "-Wno-implicit-function-declaration",
+        "-Wno-int-conversion",
+        "-Wno-incompatible-pointer-types",
+        "-Wno-return-type",
+    ])
 
 
 def sanitized_content(source):
@@ -63,13 +83,16 @@ def update_staged_file(source, destination):
         destination.write_bytes(encoded)
 
 
-for directory in SOURCE_DIRS:
-    for source in (repository / directory).iterdir():
-        if source.is_file() and source.suffix.lower() == ".h":
-            destination = stage_dir / directory / source.name
-            update_staged_file(source, destination)
+if not MENU_ONLY:
+    for directory in SOURCE_DIRS:
+        for source in (repository / directory).iterdir():
+            if source.is_file() and source.suffix.lower() == ".h":
+                destination = stage_dir / directory / source.name
+                update_staged_file(source, destination)
 
-env.Prepend(CPPPATH=[str(stage_dir / directory) for directory in SOURCE_DIRS])
+    env.Prepend(CPPPATH=[
+        str(stage_dir / directory) for directory in SOURCE_DIRS
+    ])
 
 expected_sources = {
     stage_dir / Path(relative_name).with_suffix(".c")
@@ -94,4 +117,5 @@ for relative_name in ENGINE_SOURCES:
     if not destination.exists() or destination.read_bytes() != encoded:
         destination.write_bytes(encoded)
 
-env.BuildSources(str(object_dir), str(stage_dir))
+if ENGINE_SOURCES:
+    env.BuildSources(str(object_dir), str(stage_dir))

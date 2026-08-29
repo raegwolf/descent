@@ -152,9 +152,14 @@ void load_text()
 		cfclose(tfile);
 	}
 
-	#if defined(MACOS) && defined(SHAREWARE)
+	#if defined(SHAREWARE) && (defined(MACOS) || defined(ESP32))
 	/* The shareware DESCENT.TXB contains 514 entries; the registered headers
-	 * expose later IDs as well. Match the original shareware data contract. */
+	 * expose later IDs as well.  Supply every entry used by the portable
+	 * shareware build so none of the registered-only tail remains NULL. */
+	Text_string[514] = "Done";
+	Text_string[515] = "I am a";
+	Text_string[516] = "Cheater";
+	Text_string[517] = "Loading data";
 	Text_string[518] = "ALT-F2\t  Save Game";
 	Text_string[519] = "ALT-F3\t  Load Game";
 	Text_string[520] = "Only in Registered version!";
