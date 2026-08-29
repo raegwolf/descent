@@ -140,7 +140,7 @@ extern int speedtest_on;
 
 ubyte do_auto_demo = 1;			// Flag used to enable auto demo starting in main menu.
 int Player_default_difficulty; // Last difficulty level chosen by the player
-int Auto_leveling_on = 0;
+int Auto_leveling_on = 1;
 int Menu_draw_copyright = 0;
 #if defined(MACOS)
 

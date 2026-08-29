@@ -58,6 +58,7 @@ static int menu_input_to_key(int input)
 	case DESCENT_MENU_INPUT_LEFT: return KEY_LEFT;
 	case DESCENT_MENU_INPUT_RIGHT: return KEY_RIGHT;
 	case DESCENT_MENU_INPUT_SELECT: return KEY_ENTER;
+	case DESCENT_MENU_INPUT_ESCAPE: return KEY_ESC;
 	default: return 0;
 	}
 }
@@ -190,24 +191,45 @@ song_info Songs[MAX_SONGS];
 void songs_play_song(int songnum, int repeat) { (void)songnum; (void)repeat; }
 void songs_play_level_song(int levelnum) { (void)levelnum; }
 
-/* The ESP32 sticks feed the portable control accumulator above. The DOS
- * joystick API remains disabled so its calibration/configuration path cannot
- * transform those already-normalized values a second time. */
+/* The ESP32 axes feed the portable control accumulator above instead of the
+ * DOS calibration path. Bridge the two switches into the legacy button API as
+ * well: death and score prompts use it for their "any button" checks. */
 char joy_installed, joy_present;
 int joy_init(void) { return 0; }
 void joy_close(void) {}
-void joy_flush(void) {}
+void joy_flush(void)
+{
+	esp32_poll_joysticks();
+	descent_joystick_flush(esp32_milliseconds());
+}
 void joy_set_timer_rate(int n) { (void)n; }
 int joy_get_timer_rate(void) { return 0; }
 void joy_get_pos(int *x,int *y) { *x = *y = 0; }
-int joy_get_btns(void) { return 0; }
+int joy_get_btns(void)
+{
+	int buttons = 0;
+	esp32_poll_joysticks();
+	if (descent_joystick_button_state(DESCENT_JOYSTICK_LEFT_BUTTON))
+		buttons |= 1 << DESCENT_JOYSTICK_LEFT_BUTTON;
+	if (descent_joystick_button_state(DESCENT_JOYSTICK_RIGHT_BUTTON))
+		buttons |= 1 << DESCENT_JOYSTICK_RIGHT_BUTTON;
+	return buttons;
+}
 int joy_get_button_up_cnt(int n) { (void)n; return 0; }
-int joy_get_button_down_cnt(int n) { (void)n; return 0; }
+int joy_get_button_down_cnt(int n)
+{
+	esp32_poll_joysticks();
+	return (int)descent_joystick_take_any_button_down_count((unsigned int)n);
+}
 fix joy_get_button_down_time(int n) { (void)n; return 0; }
-ubyte joy_read_raw_buttons(void) { return 0; }
+ubyte joy_read_raw_buttons(void) { return (ubyte)joy_get_btns(); }
 ubyte joystick_read_raw_axis(ubyte m,int *a) { (void)m; if (a) *a=0; return 0; }
 ubyte joy_get_present_mask(void) { return 0; }
-int joy_get_button_state(int n) { (void)n; return 0; }
+int joy_get_button_state(int n)
+{
+	esp32_poll_joysticks();
+	return descent_joystick_button_state((unsigned int)n);
+}
 int joy_get_scaled_reading(int r,int a) { (void)r;(void)a; return 0; }
 void joy_set_cen(void) {}
 void joy_set_cen_fake(int n) { (void)n; }

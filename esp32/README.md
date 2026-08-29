@@ -37,7 +37,8 @@ joysticks provide gameplay and menu input:
 The left stick accelerates/reverses and strafes left/right; its switch fires
 the primary weapon. The right stick looks and turns; its switch fires the
 secondary weapon. In menus, either stick emits up/down/left/right navigation
-and either switch selects. Leave both sticks centered during startup. The
+and either switch selects. Holding the left switch for 900 ms emits Escape,
+opening the in-game menu. Leave both sticks centered during startup. The
 firmware measures all four resting positions, treats them as zero, and applies
 the resulting per-axis offsets to subsequent readings.
 
@@ -48,7 +49,7 @@ The HOG is 2,339,773 bytes and the PIG is 5,092,871 bytes. Together they are
 factory application slot instead of two OTA slots. OTA updating is not
 available in this bring-up layout; serial flashing remains available.
 
-The verified linked application is 8,065,901 bytes, 51.3% of the 15 MiB slot.
+The verified linked application is 8,065,905 bytes, 51.3% of the 15 MiB slot.
 Changing either resource automatically rebuilds its linked object.
 
 Each embedded archive is independently aligned to a 4-byte flash boundary.

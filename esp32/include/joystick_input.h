@@ -27,7 +27,8 @@ enum descent_menu_input {
     DESCENT_MENU_INPUT_DOWN,
     DESCENT_MENU_INPUT_LEFT,
     DESCENT_MENU_INPUT_RIGHT,
-    DESCENT_MENU_INPUT_SELECT
+    DESCENT_MENU_INPUT_SELECT,
+    DESCENT_MENU_INPUT_ESCAPE
 };
 
 /* Call calibrate while both sticks are released. Each measured position is
@@ -47,6 +48,9 @@ int descent_joystick_axis_value(unsigned int axis);
 int descent_joystick_axis_offset(unsigned int axis);
 int descent_joystick_button_state(unsigned int button);
 unsigned int descent_joystick_take_button_down_count(unsigned int button);
+/* Legacy prompts consume their own copy of each press so gameplay firing does
+ * not hide an "any button" event. */
+unsigned int descent_joystick_take_any_button_down_count(unsigned int button);
 
 int descent_joystick_peek_menu_input(void);
 int descent_joystick_take_menu_input(void);

@@ -9,22 +9,22 @@
 #define MENU_INITIAL_REPEAT_MS 350U
 #define MENU_REPEAT_MS 140U
 #define MENU_QUEUE_SIZE 8U
-#define BUTTON_DEBOUNCE_MS 25U
+#define ESCAPE_LONG_PRESS_MS 900U
 
 typedef struct joystick_state {
     int offset[DESCENT_JOYSTICK_AXIS_COUNT];
     int filtered[DESCENT_JOYSTICK_AXIS_COUNT];
     int axis[DESCENT_JOYSTICK_AXIS_COUNT];
-    uint8_t raw_buttons;
     uint8_t buttons;
-    uint32_t button_changed_at[DESCENT_JOYSTICK_BUTTON_COUNT];
     uint8_t button_down_count[DESCENT_JOYSTICK_BUTTON_COUNT];
+    uint8_t any_button_down_count[DESCENT_JOYSTICK_BUTTON_COUNT];
     int8_t menu_direction[2];
     uint32_t menu_repeat_at[2];
     uint8_t menu_queue[MENU_QUEUE_SIZE];
     uint8_t menu_head;
     uint8_t menu_tail;
-    uint8_t menu_select_pending;
+    uint32_t left_button_pressed_at;
+    uint8_t left_long_press_sent;
 } joystick_state;
 
 static joystick_state input;
@@ -127,6 +127,7 @@ void descent_joystick_update(
 {
     unsigned int axis;
     unsigned int button;
+    uint8_t changed_to_pressed;
 
     for (axis = 0; axis < DESCENT_JOYSTICK_AXIS_COUNT; ++axis) {
         input.filtered[axis] =
@@ -139,33 +140,29 @@ void descent_joystick_update(
     input.axis[DESCENT_JOYSTICK_LEFT_X] =
         -input.axis[DESCENT_JOYSTICK_LEFT_X];
 
+    changed_to_pressed = (uint8_t)(pressed_buttons & ~input.buttons);
+    if (changed_to_pressed & (1U << DESCENT_JOYSTICK_LEFT_BUTTON)) {
+        input.left_button_pressed_at = now_ms;
+        input.left_long_press_sent = 0;
+    }
+    input.buttons = pressed_buttons;
     for (button = 0; button < DESCENT_JOYSTICK_BUTTON_COUNT; ++button) {
         uint8_t mask = (uint8_t)(1U << button);
-        int raw_pressed = (pressed_buttons & mask) != 0;
-        int previous_raw_pressed = (input.raw_buttons & mask) != 0;
-        int stable_pressed = (input.buttons & mask) != 0;
-
-        if (raw_pressed != previous_raw_pressed) {
-            if (raw_pressed)
-                input.raw_buttons |= mask;
-            else
-                input.raw_buttons &= (uint8_t)~mask;
-            input.button_changed_at[button] = now_ms;
-        } else if (raw_pressed != stable_pressed &&
-                   time_reached(now_ms,
-                                input.button_changed_at[button] +
-                                BUTTON_DEBOUNCE_MS)) {
-            if (raw_pressed) {
-                input.buttons |= mask;
-                if (input.button_down_count[button] < UCHAR_MAX)
-                    ++input.button_down_count[button];
-                /* Selection must not be lost behind direction-repeat events
-                 * while a stick is held away from center. */
-                input.menu_select_pending = 1;
-            } else {
-                input.buttons &= (uint8_t)~mask;
-            }
+        if (changed_to_pressed & mask) {
+            if (input.button_down_count[button] < UCHAR_MAX)
+                ++input.button_down_count[button];
+            if (input.any_button_down_count[button] < UCHAR_MAX)
+                ++input.any_button_down_count[button];
+            queue_menu_input(DESCENT_MENU_INPUT_SELECT);
         }
+    }
+
+    if ((input.buttons & (1U << DESCENT_JOYSTICK_LEFT_BUTTON)) &&
+        !input.left_long_press_sent &&
+        time_reached(now_ms,
+                     input.left_button_pressed_at + ESCAPE_LONG_PRESS_MS)) {
+        queue_menu_input(DESCENT_MENU_INPUT_ESCAPE);
+        input.left_long_press_sent = 1;
     }
 
     update_menu_direction(0, now_ms);
@@ -176,9 +173,10 @@ void descent_joystick_flush(uint32_t now_ms)
 {
     unsigned int button;
     input.menu_head = input.menu_tail = 0;
-    input.menu_select_pending = 0;
-    for (button = 0; button < DESCENT_JOYSTICK_BUTTON_COUNT; ++button)
+    for (button = 0; button < DESCENT_JOYSTICK_BUTTON_COUNT; ++button) {
         input.button_down_count[button] = 0;
+        input.any_button_down_count[button] = 0;
+    }
     input.menu_direction[0] = (int8_t)menu_direction_for_stick(0);
     input.menu_direction[1] = (int8_t)menu_direction_for_stick(1);
     input.menu_repeat_at[0] = now_ms + MENU_INITIAL_REPEAT_MS;
@@ -216,10 +214,18 @@ unsigned int descent_joystick_take_button_down_count(unsigned int button)
     return count;
 }
 
+unsigned int descent_joystick_take_any_button_down_count(unsigned int button)
+{
+    unsigned int count;
+    if (button >= DESCENT_JOYSTICK_BUTTON_COUNT)
+        return 0;
+    count = input.any_button_down_count[button];
+    input.any_button_down_count[button] = 0;
+    return count;
+}
+
 int descent_joystick_peek_menu_input(void)
 {
-    if (input.menu_select_pending)
-        return DESCENT_MENU_INPUT_SELECT;
     if (input.menu_head == input.menu_tail)
         return DESCENT_MENU_INPUT_NONE;
     return input.menu_queue[input.menu_head];
@@ -228,9 +234,7 @@ int descent_joystick_peek_menu_input(void)
 int descent_joystick_take_menu_input(void)
 {
     int event = descent_joystick_peek_menu_input();
-    if (event == DESCENT_MENU_INPUT_SELECT)
-        input.menu_select_pending = 0;
-    else if (event != DESCENT_MENU_INPUT_NONE)
+    if (event != DESCENT_MENU_INPUT_NONE)
         input.menu_head = (uint8_t)((input.menu_head + 1U) % MENU_QUEUE_SIZE);
     return event;
 }

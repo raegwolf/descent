@@ -58,18 +58,26 @@ static void test_buttons_are_edge_counted(void)
     uint16_t raw[DESCENT_JOYSTICK_AXIS_COUNT] = {2048, 2048, 2048, 2048};
     reset_centered(&now);
 
-    /* A short press/release bounce must not become a stable fire event. */
+    /* Button state is immediate and independent of the analogue axes. */
     now += 5;
     descent_joystick_update(now, raw, 1);
+    assert(descent_joystick_button_state(DESCENT_JOYSTICK_LEFT_BUTTON));
+    assert(descent_joystick_take_button_down_count(
+               DESCENT_JOYSTICK_LEFT_BUTTON) == 1);
+    assert(descent_joystick_take_any_button_down_count(
+               DESCENT_JOYSTICK_LEFT_BUTTON) == 1);
+    assert(descent_joystick_take_any_button_down_count(
+               DESCENT_JOYSTICK_LEFT_BUTTON) == 0);
+
     now += 5;
     descent_joystick_update(now, raw, 0);
     assert(!descent_joystick_button_state(DESCENT_JOYSTICK_LEFT_BUTTON));
-    assert(descent_joystick_take_button_down_count(
-               DESCENT_JOYSTICK_LEFT_BUTTON) == 0);
-
-    settle(&now, 2048, 2048, 2048, 2048, 1);
+    now += 5;
+    descent_joystick_update(now, raw, 1);
     assert(descent_joystick_button_state(DESCENT_JOYSTICK_LEFT_BUTTON));
     assert(descent_joystick_take_button_down_count(
+               DESCENT_JOYSTICK_LEFT_BUTTON) == 1);
+    assert(descent_joystick_take_any_button_down_count(
                DESCENT_JOYSTICK_LEFT_BUTTON) == 1);
     assert(descent_joystick_take_button_down_count(
                DESCENT_JOYSTICK_LEFT_BUTTON) == 0);
@@ -102,42 +110,80 @@ static void test_menu_direction_select_and_repeat(void)
     assert(descent_joystick_take_menu_input() == DESCENT_MENU_INPUT_SELECT);
 }
 
-static void test_buttons_override_deflected_axis_events(void)
+static void test_buttons_with_deflected_axes(void)
 {
     uint32_t now = 0;
-    int repeat;
+    uint16_t j1_deflected[DESCENT_JOYSTICK_AXIS_COUNT] = {
+        4095, 0, 2048, 2048
+    };
+    uint16_t j2_deflected[DESCENT_JOYSTICK_AXIS_COUNT] = {
+        2048, 2048, 4095, 0
+    };
     reset_centered(&now);
 
-    /* Fill the direction queue with J1 held hard over, then press J1. */
-    settle(&now, 4095, 2048, 2048, 2048, 0);
-    for (repeat = 0; repeat < 12; ++repeat) {
-        now += 400;
-        {
-            uint16_t raw[DESCENT_JOYSTICK_AXIS_COUNT] = {
-                4095, 2048, 2048, 2048
-            };
-            descent_joystick_update(now, raw, 0);
-        }
-    }
-    settle(&now, 4095, 2048, 2048, 2048, 1);
-    assert(descent_joystick_take_menu_input() == DESCENT_MENU_INPUT_SELECT);
+    now += 10;
+    descent_joystick_update(now, j1_deflected, 1);
     assert(descent_joystick_button_state(DESCENT_JOYSTICK_LEFT_BUTTON));
+    assert(descent_joystick_take_button_down_count(
+               DESCENT_JOYSTICK_LEFT_BUTTON) == 1);
+    assert(descent_joystick_take_any_button_down_count(
+               DESCENT_JOYSTICK_LEFT_BUTTON) == 1);
 
-    /* Repeat for J2 with both of its axes deflected. */
     reset_centered(&now);
-    settle(&now, 2048, 2048, 4095, 0, 0);
-    for (repeat = 0; repeat < 12; ++repeat) {
-        now += 400;
-        {
-            uint16_t raw[DESCENT_JOYSTICK_AXIS_COUNT] = {
-                2048, 2048, 4095, 0
-            };
-            descent_joystick_update(now, raw, 0);
-        }
-    }
-    settle(&now, 2048, 2048, 4095, 0, 2);
-    assert(descent_joystick_take_menu_input() == DESCENT_MENU_INPUT_SELECT);
+    now += 10;
+    descent_joystick_update(now, j2_deflected, 2);
     assert(descent_joystick_button_state(DESCENT_JOYSTICK_RIGHT_BUTTON));
+    assert(descent_joystick_take_button_down_count(
+               DESCENT_JOYSTICK_RIGHT_BUTTON) == 1);
+    assert(descent_joystick_take_any_button_down_count(
+               DESCENT_JOYSTICK_RIGHT_BUTTON) == 1);
+}
+
+static void test_flush_clears_both_button_consumers(void)
+{
+    uint32_t now = 0;
+    uint16_t raw[DESCENT_JOYSTICK_AXIS_COUNT] = {2048, 2048, 2048, 2048};
+    reset_centered(&now);
+
+    descent_joystick_update(++now, raw, 3);
+    descent_joystick_flush(now);
+    assert(descent_joystick_take_button_down_count(
+               DESCENT_JOYSTICK_LEFT_BUTTON) == 0);
+    assert(descent_joystick_take_any_button_down_count(
+               DESCENT_JOYSTICK_LEFT_BUTTON) == 0);
+    assert(descent_joystick_take_button_down_count(
+               DESCENT_JOYSTICK_RIGHT_BUTTON) == 0);
+    assert(descent_joystick_take_any_button_down_count(
+               DESCENT_JOYSTICK_RIGHT_BUTTON) == 0);
+}
+
+static void test_left_long_press_emits_one_escape(void)
+{
+    uint32_t now = 100;
+    uint16_t raw[DESCENT_JOYSTICK_AXIS_COUNT] = {2048, 2048, 2048, 2048};
+    reset_centered(&now);
+
+    descent_joystick_update(now, raw, 1);
+    assert(descent_joystick_button_state(DESCENT_JOYSTICK_LEFT_BUTTON));
+    assert(descent_joystick_take_menu_input() == DESCENT_MENU_INPUT_SELECT);
+
+    now += 899;
+    descent_joystick_update(now, raw, 1);
+    assert(descent_joystick_take_menu_input() == DESCENT_MENU_INPUT_NONE);
+
+    now += 1;
+    descent_joystick_update(now, raw, 1);
+    assert(descent_joystick_take_menu_input() == DESCENT_MENU_INPUT_ESCAPE);
+
+    now += 1000;
+    descent_joystick_update(now, raw, 1);
+    assert(descent_joystick_take_menu_input() == DESCENT_MENU_INPUT_NONE);
+
+    now += 10;
+    descent_joystick_update(now, raw, 0);
+    now += 10;
+    descent_joystick_update(now, raw, 1);
+    assert(descent_joystick_take_menu_input() == DESCENT_MENU_INPUT_SELECT);
 }
 
 int main(void)
@@ -146,7 +192,9 @@ int main(void)
     test_axes_and_dead_zone();
     test_buttons_are_edge_counted();
     test_menu_direction_select_and_repeat();
-    test_buttons_override_deflected_axis_events();
+    test_buttons_with_deflected_axes();
+    test_flush_clears_both_button_consumers();
+    test_left_long_press_emits_one_escape();
     puts("joystick input tests passed");
     return 0;
 }
