@@ -19,7 +19,9 @@
 #include "key.h"
 #include "gr.h"
 #include "songs.h"
+#include "kconfig.h"
 #include "dos.h"
+#include "joystick_input.h"
 
 int start_to_new_game = 1;
 
@@ -37,7 +39,7 @@ fix timer_get_fixed_seconds(void)
 fix timer_get_fixed_secondsX(void) { return timer_get_fixed_seconds(); }
 fix timer_get_approx_seconds(void) { return timer_get_fixed_seconds(); }
 
-/* No keyboard is mapped for this target. */
+/* Menus consume the two physical joysticks as virtual arrow/Enter keys. */
 char keyd_buffer_type = 0;
 char keyd_repeat = 0;
 char keyd_editor_mode = 0;
@@ -45,25 +47,113 @@ volatile unsigned char keyd_last_pressed;
 volatile unsigned char keyd_last_released;
 volatile unsigned char keyd_pressed[256];
 volatile int keyd_time_when_last_pressed;
-void key_init(void) { memset((void *)keyd_pressed, 0, sizeof(keyd_pressed)); }
+extern ubyte kc_use_external_control;
+extern fix FrameTime;
+
+static int menu_input_to_key(int input)
+{
+	switch (input) {
+	case DESCENT_MENU_INPUT_UP: return KEY_UP;
+	case DESCENT_MENU_INPUT_DOWN: return KEY_DOWN;
+	case DESCENT_MENU_INPUT_LEFT: return KEY_LEFT;
+	case DESCENT_MENU_INPUT_RIGHT: return KEY_RIGHT;
+	case DESCENT_MENU_INPUT_SELECT: return KEY_ENTER;
+	default: return 0;
+	}
+}
+
+void key_init(void)
+{
+	memset((void *)keyd_pressed, 0, sizeof(keyd_pressed));
+	esp32_poll_joysticks();
+	descent_joystick_flush(esp32_milliseconds());
+	/* Reuse the engine's existing external-controller callback point. */
+	kc_use_external_control = 1;
+}
 void key_close(void) {}
 void key_debug(void) {}
-void key_flush(void) { memset((void *)keyd_pressed, 0, sizeof(keyd_pressed)); }
-int key_checkch(void) { return 0; }
-int key_inkey(void) { return 0; }
-int key_inkey_time(fix *time) { if (time) *time = 0; return 0; }
-int key_peekkey(void) { return 0; }
+void key_flush(void)
+{
+	memset((void *)keyd_pressed, 0, sizeof(keyd_pressed));
+	esp32_poll_joysticks();
+	descent_joystick_flush(esp32_milliseconds());
+}
+int key_checkch(void)
+{
+	esp32_poll_joysticks();
+	return descent_joystick_peek_menu_input() != DESCENT_MENU_INPUT_NONE;
+}
+int key_inkey(void)
+{
+	esp32_poll_joysticks();
+	return menu_input_to_key(descent_joystick_take_menu_input());
+}
+int key_inkey_time(fix *time)
+{
+	int key = key_inkey();
+	if (time) *time = timer_get_fixed_seconds();
+	return key;
+}
+int key_peekkey(void)
+{
+	esp32_poll_joysticks();
+	return menu_input_to_key(descent_joystick_peek_menu_input());
+}
 int key_getch(void)
 {
-	/* A blocking prompt is intentionally unanswerable on the no-input build. */
-	gr_sync_display();
-	for (;;) esp32_delay_ms(100);
+	int key;
+	for (;;) {
+		key = key_inkey();
+		if (key) return key;
+		gr_sync_display();
+		esp32_delay_ms(10);
+	}
 }
 unsigned int key_get_shift_status(void) { return 0; }
 fix key_down_time(int scancode) { (void)scancode; return 0; }
 unsigned int key_down_count(int scancode) { (void)scancode; return 0; }
 unsigned int key_up_count(int scancode) { (void)scancode; return 0; }
 char key_to_ascii(int keycode) { (void)keycode; return 0; }
+
+static fix scaled_axis_time(int axis, fix frame_time)
+{
+	return (fix)(((int64_t)descent_joystick_axis_value(axis) * frame_time) /
+	             32767);
+}
+
+static ubyte add_count_saturated(ubyte current, unsigned int added)
+{
+	unsigned int total = current + added;
+	return (ubyte)(total > 255U ? 255U : total);
+}
+
+void kconfig_read_external_controls(void)
+{
+	unsigned int count;
+	esp32_poll_joysticks();
+	Controls.forward_thrust_time +=
+		scaled_axis_time(DESCENT_JOYSTICK_LEFT_Y, FrameTime);
+	Controls.sideways_thrust_time +=
+		scaled_axis_time(DESCENT_JOYSTICK_LEFT_X, FrameTime);
+	/* Descent's positive pitch angle points the nose downward. */
+	Controls.pitch_time -=
+		scaled_axis_time(DESCENT_JOYSTICK_RIGHT_Y, FrameTime) / 2;
+	Controls.heading_time +=
+		scaled_axis_time(DESCENT_JOYSTICK_RIGHT_X, FrameTime);
+
+	Controls.fire_primary_state |= descent_joystick_button_state(
+		DESCENT_JOYSTICK_LEFT_BUTTON);
+	count = descent_joystick_take_button_down_count(
+		DESCENT_JOYSTICK_LEFT_BUTTON);
+	Controls.fire_primary_down_count = add_count_saturated(
+		Controls.fire_primary_down_count, count);
+	Controls.fire_secondary_state |= descent_joystick_button_state(
+		DESCENT_JOYSTICK_RIGHT_BUTTON);
+	count = descent_joystick_take_button_down_count(
+		DESCENT_JOYSTICK_RIGHT_BUTTON);
+	Controls.fire_secondary_down_count = add_count_saturated(
+		Controls.fire_secondary_down_count, count);
+}
 
 /* Sound and music are deliberately absent. */
 int digi_driver_board, digi_driver_port, digi_driver_irq, digi_driver_dma;
@@ -100,7 +190,9 @@ song_info Songs[MAX_SONGS];
 void songs_play_song(int songnum, int repeat) { (void)songnum; (void)repeat; }
 void songs_play_level_song(int levelnum) { (void)levelnum; }
 
-/* No joystick or mouse is exposed. */
+/* The ESP32 sticks feed the portable control accumulator above. The DOS
+ * joystick API remains disabled so its calibration/configuration path cannot
+ * transform those already-normalized values a second time. */
 char joy_installed, joy_present;
 int joy_init(void) { return 0; }
 void joy_close(void) {}
@@ -210,7 +302,6 @@ void vfx_close_graphics(void) {}
 void vfx_init_graphics(void) {}
 void victor_init_graphics(void) {}
 void vfx_set_palette_sub(ubyte *palette) { gr_palette_load(palette); }
-void kconfig_read_external_controls(void) {}
 
 /* Filename enumeration is unused without menus, demos, or custom missions. */
 int _dos_findfirst(const char *pattern,int attributes,struct find_t *result)

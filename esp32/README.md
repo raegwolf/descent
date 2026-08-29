@@ -26,8 +26,19 @@ The display configuration retains the validated `esp32-test` path:
 - the ESP32-S3 DMA callback fix in `tools/patch_tft_espi.py`
 - alternating byte-swapped 320x50 DMA strips in internal SRAM
 
-Sound, networking, joystick, mouse, and keyboard input are disabled for this
-first-level display test.
+Sound, networking, mouse, and keyboard input are disabled. Two KY-023 analogue
+joysticks provide gameplay and menu input:
+
+- left stick: X on GPIO 4, Y on GPIO 5, switch on GPIO 15;
+- right stick: X on GPIO 6, Y on GPIO 7, switch on GPIO 16;
+- both joystick VCC pins connect to the shared 3V3 rail and both grounds to the
+  shared ground rail.
+
+The left stick accelerates/reverses and strafes left/right; its switch fires
+the primary weapon. The right stick looks and turns; its switch fires the
+secondary weapon. In menus, either stick emits up/down/left/right navigation
+and either switch selects. Leave both sticks centered during startup while the
+firmware measures their resting positions.
 
 ## Flash layout
 
@@ -36,7 +47,7 @@ The HOG is 2,339,773 bytes and the PIG is 5,092,871 bytes. Together they are
 factory application slot instead of two OTA slots. OTA updating is not
 available in this bring-up layout; serial flashing remains available.
 
-The verified linked application is 8,055,521 bytes, 51.2% of the 15 MiB slot.
+The verified linked application is 8,065,729 bytes, 51.3% of the 15 MiB slot.
 Changing either resource automatically rebuilds its linked object.
 
 Each embedded archive is independently aligned to a 4-byte flash boundary.
@@ -53,16 +64,16 @@ units and PIG object so it compiles quickly.
 
 ## Build, upload, and monitor
 
-From `esp32/`:
+From the repository root:
 
 ```sh
-./build-upload-monitor.sh
+./build-run-esp32.sh
 ```
 
 Pass a serial device if automatic selection is ambiguous:
 
 ```sh
-./build-upload-monitor.sh /dev/cu.usbserial-XXXX
+./build-run-esp32.sh /dev/cu.usbserial-XXXX
 ```
 
 Build without uploading:

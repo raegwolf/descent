@@ -677,6 +677,7 @@ void loop() {
 #include <esp_heap_caps.h>
 
 #include "esp32_bridge.h"
+#include "joystick_input.h"
 
 namespace {
 
@@ -693,6 +694,13 @@ constexpr int kDmaStripHeight = 50;
 constexpr size_t kDmaStripPixels =
     static_cast<size_t>(kGameWidth) * kDmaStripHeight;
 constexpr size_t kDmaStripBytes = kDmaStripPixels * sizeof(uint16_t);
+constexpr int kLeftJoystickXPin = 4;
+constexpr int kLeftJoystickYPin = 5;
+constexpr int kLeftJoystickButtonPin = 15;
+constexpr int kRightJoystickXPin = 6;
+constexpr int kRightJoystickYPin = 7;
+constexpr int kRightJoystickButtonPin = 16;
+constexpr unsigned int kJoystickCenterSamples = 32;
 
 TFT_eSPI display;
 uint16_t *dmaStrips[2];
@@ -744,6 +752,36 @@ void allocateDmaStrips()
     }
 }
 
+void initializeJoysticks()
+{
+    static constexpr int kAxisPins[DESCENT_JOYSTICK_AXIS_COUNT] = {
+        kLeftJoystickXPin, kLeftJoystickYPin,
+        kRightJoystickXPin, kRightJoystickYPin
+    };
+    uint32_t totals[DESCENT_JOYSTICK_AXIS_COUNT] = {};
+    uint16_t centers[DESCENT_JOYSTICK_AXIS_COUNT];
+
+    pinMode(kLeftJoystickButtonPin, INPUT_PULLUP);
+    pinMode(kRightJoystickButtonPin, INPUT_PULLUP);
+    analogReadResolution(12);
+    for (int pin : kAxisPins)
+        analogSetPinAttenuation(pin, ADC_11db);
+
+    Serial.println("Centering joysticks; leave both sticks released...");
+    for (unsigned int sample = 0; sample < kJoystickCenterSamples; ++sample) {
+        for (unsigned int axis = 0; axis < DESCENT_JOYSTICK_AXIS_COUNT;
+             ++axis)
+            totals[axis] += analogRead(kAxisPins[axis]);
+        delay(2);
+    }
+    for (unsigned int axis = 0; axis < DESCENT_JOYSTICK_AXIS_COUNT; ++axis)
+        centers[axis] = static_cast<uint16_t>(
+            totals[axis] / kJoystickCenterSamples);
+    descent_joystick_reset(millis(), centers);
+    Serial.printf("Joystick centers: J1=%u,%u J2=%u,%u\n",
+                  centers[0], centers[1], centers[2], centers[3]);
+}
+
 void gameTask(void *)
 {
     char program[] = "descent";
@@ -775,7 +813,7 @@ void gameTask(void *)
     Serial.printf("Free internal RAM after engine: %u bytes; PSRAM: %u bytes\n",
                   heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
                   heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
-    Serial.println("Starting Level 1 (input, sound and networking disabled)...");
+    Serial.println("Starting Level 1 (dual joystick input enabled; sound and networking disabled)...");
     const int previousSkipBriefings = Skip_briefing_screens;
     Skip_briefing_screens = 1;
     StartNewGame(1);
@@ -840,6 +878,24 @@ extern "C" uint32_t esp32_milliseconds(void)
     return millis();
 }
 
+extern "C" void esp32_poll_joysticks(void)
+{
+    static constexpr int kAxisPins[DESCENT_JOYSTICK_AXIS_COUNT] = {
+        kLeftJoystickXPin, kLeftJoystickYPin,
+        kRightJoystickXPin, kRightJoystickYPin
+    };
+    uint16_t raw[DESCENT_JOYSTICK_AXIS_COUNT];
+    uint8_t buttons = 0;
+
+    for (unsigned int axis = 0; axis < DESCENT_JOYSTICK_AXIS_COUNT; ++axis)
+        raw[axis] = static_cast<uint16_t>(analogRead(kAxisPins[axis]));
+    if (digitalRead(kLeftJoystickButtonPin) == LOW)
+        buttons |= 1U << DESCENT_JOYSTICK_LEFT_BUTTON;
+    if (digitalRead(kRightJoystickButtonPin) == LOW)
+        buttons |= 1U << DESCENT_JOYSTICK_RIGHT_BUTTON;
+    descent_joystick_update(millis(), raw, buttons);
+}
+
 extern "C" void esp32_delay_ms(unsigned int milliseconds)
 {
     delay(milliseconds);
@@ -856,6 +912,8 @@ void setup()
     delay(250);
     Serial.println("Descent ESP32-S3 starting");
 
+    initializeJoysticks();
+
     display.init();
     display.setRotation(1);
     display.setSwapBytes(true);
@@ -865,6 +923,7 @@ void setup()
     if (!display.initDMA())
         stopWithMessage("Could not initialize TFT SPI DMA");
     Serial.println("DESCENT.HOG and DESCENT.PIG are embedded in flash");
+    Serial.println("Dual joystick input enabled on GPIO 4/5/15 and 6/7/16");
 
     BaseType_t created = xTaskCreatePinnedToCore(
         gameTask, "descent", 49152, nullptr, 1, nullptr, 1);

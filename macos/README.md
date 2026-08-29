@@ -15,6 +15,12 @@ implemented as no-ops at the macOS boundary and `NETWORK` disabled for the
 ## Build and run
 
 ```sh
+./build-run-macos.sh
+```
+
+Equivalent direct make commands:
+
+```sh
 make -C macos test app
 make -C macos run
 ```
