@@ -35,11 +35,12 @@ FRONT_D = 8.0
 REAR_D = CASE_D - FRONT_D
 WALL = 2.4
 
-# Front interfaces. The visible TFT glass was not measured, so this window is
-# intentionally conservative and remains a physical-fit-check dimension.
-SCREEN_WINDOW_W = 74.0
-SCREEN_WINDOW_H = 46.0
-SCREEN_WINDOW_R = 2.5
+# Front interfaces. The 69 x 50 mm TFT body protrudes through this
+# landscape-oriented opening.
+# It is intentionally a sharp-cornered rectangle with no fit allowance.
+SCREEN_WINDOW_W = 69.0
+SCREEN_WINDOW_H = 50.0
+SCREEN_WINDOW_R = 0.0
 JOYSTICK_OPENING_D = 30.0
 JOYSTICK_X = 65.0
 
@@ -51,6 +52,10 @@ CLEARANCE_D = 2.4
 SCREEN_GUSSET_LENGTH = 10.0
 SCREEN_GUSSET_HEIGHT = 12.0
 SCREEN_GUSSET_THICKNESS = 2.4
+SEAM_ENGAGEMENT = 1.0
+SEAM_GROOVE_DEPTH = 1.2
+SEAM_FRONT_RIDGE_W = 1.2
+SEAM_RADIAL_CLEARANCE = 0.2
 
 # Measured component mounting interfaces.
 SCREEN_PITCH_X = 76.0
@@ -87,11 +92,22 @@ SCREEN_PCB_Z = CASE_D - SCREEN_FRONT_INSET - SCREEN_MODULE_DEPTH  # 24.1
 JOYSTICK_PCB_Z = 8.0
 ESP32_PCB_Z = WALL + 0.8  # 3.2
 ESP32_WIRE_CLEARANCE = 20.0
-ESP32_CRADLE_CLEAR_W = 29.2  # 28 mm PCB + 0.6 mm per side
-USB_OPENING_W = 21.0  # User-specified final enclosure opening width
-USB_OPENING_H = 6.4  # 4.9 mm connector height + 0.5 below + 1.0 above
+ESP32_POCKET_W = 28.0
+ESP32_POCKET_L = 63.0
+ESP32_BORDER_H = 5.0
+ESP32_BORDER_T = 2.0
+ESP32_BOARD_T = 1.6
+ESP32_LIP_T = 3.0
+ESP32_LIP_OVERLAP = 5.0
+ESP32_LIP_CLEARANCE = 0.4
+ESP32_USB_LIP_T = 3.0
+ESP32_USB_LIP_PROJECTION = 5.0
+ESP32_USB_LIP_HEIGHT_FROM_PCB = 5.0
+ESP32_USB_LIP_WALL_OVERLAP = 0.2
+USB_OPENING_W = 22.0
+USB_OPENING_H = 5.0
 USB_OPENING_R = 1.5
-USB_OPENING_BELOW_BOARD = 0.5
+USB_OPENING_BELOW_BOARD = 0.0
 
 
 @dataclass(frozen=True)
@@ -139,6 +155,18 @@ def rounded_rectangle_prism(width: float, height: float, radius: float, depth: f
     return horizontal.union(vertical).union(corners).clean()
 
 
+def stadium_band(width, height, inset_start, inset_end, depth, z0):
+    """Create a stadium-shaped perimeter band between two inward offsets."""
+    outer = stadium(width - 2 * inset_start, height - 2 * inset_start, depth, z0)
+    inner = stadium(
+        width - 2 * inset_end,
+        height - 2 * inset_end,
+        depth + 0.4,
+        z0 - 0.2,
+    )
+    return outer.cut(inner).clean()
+
+
 def cylinders(points, diameter, z0, height):
     return cq.Workplane("XY").pushPoints(points).circle(diameter / 2).extrude(height).translate((0, 0, z0))
 
@@ -157,10 +185,33 @@ def vertical_gusset(origin, direction, length, height, thickness):
 
 
 def make_front_shell() -> cq.Workplane:
-    outer = stadium(CASE_W, CASE_H, FRONT_D)
+    # Start with an inward overlap zone, then subtract everything except the
+    # 1.2 mm-wide outer ridge. This keeps the exterior face and closed depth fixed.
+    outer = stadium(CASE_W, CASE_H, FRONT_D + SEAM_ENGAGEMENT)
+    extension_relief = stadium(
+        CASE_W - 2 * SEAM_FRONT_RIDGE_W,
+        CASE_H - 2 * SEAM_FRONT_RIDGE_W,
+        SEAM_ENGAGEMENT + 0.4,
+        FRONT_D - 0.2,
+    )
+    outer = outer.cut(extension_relief)
     cavity = stadium(CASE_W - 2 * WALL, CASE_H - 2 * WALL, FRONT_D - WALL + 0.2, WALL)
     front = outer.cut(cavity)
-    screen_cut = rounded_rectangle_prism(SCREEN_WINDOW_W, SCREEN_WINDOW_H, SCREEN_WINDOW_R, WALL + 0.4, -0.2)
+    # Recess the inner portion of the front wall to accept the rear inner ridge.
+    front_inner_groove = stadium_band(
+        CASE_W,
+        CASE_H,
+        SEAM_FRONT_RIDGE_W,
+        WALL + 0.2,
+        SEAM_GROOVE_DEPTH + 0.4,
+        FRONT_D - SEAM_GROOVE_DEPTH,
+    )
+    front = front.cut(front_inner_groove)
+    screen_cut = (
+        cq.Workplane("XY")
+        .box(SCREEN_WINDOW_W, SCREEN_WINDOW_H, WALL + 0.4, centered=(True, True, False))
+        .translate((0, 0, -0.2))
+    )
     stick_cuts = cylinders([(-JOYSTICK_X, 0), (JOYSTICK_X, 0)], JOYSTICK_OPENING_D, -0.2, WALL + 0.4)
     front = front.cut(screen_cut).cut(stick_cuts)
     front = front.union(cylinders(CLOSURE_POINTS, 7.5, WALL, FRONT_D - WALL - 0.3))
@@ -169,13 +220,28 @@ def make_front_shell() -> cq.Workplane:
 
 
 def make_rear_shell() -> cq.Workplane:
-    outer = stadium(CASE_W, CASE_H, REAR_D)
-    cavity = stadium(CASE_W - 2 * WALL, CASE_H - 2 * WALL, REAR_D - WALL + 0.2, WALL)
+    # Extend the nominal seam zone internally, then subtract its outer band. The
+    # remaining inner band is the rear ridge and adds no exterior enclosure depth.
+    outer = stadium(CASE_W, CASE_H, REAR_D + SEAM_ENGAGEMENT)
+    cavity = stadium(
+        CASE_W - 2 * WALL,
+        CASE_H - 2 * WALL,
+        REAR_D + SEAM_ENGAGEMENT - WALL + 0.2,
+        WALL,
+    )
     rear = outer.cut(cavity)
+    rear_outer_relief = stadium_band(
+        CASE_W,
+        CASE_H,
+        0.0,
+        SEAM_FRONT_RIDGE_W + SEAM_RADIAL_CLEARANCE,
+        SEAM_GROOVE_DEPTH + SEAM_ENGAGEMENT + 0.4,
+        REAR_D - SEAM_GROOVE_DEPTH,
+    )
+    rear = rear.cut(rear_outer_relief)
 
-    # One rounded opening spans both USB-C sockets. Width is the user-specified
-    # enclosure cutout; height follows the measured 4.9 mm connector height with
-    # explicit vertical print/assembly clearance.
+    # One rounded 22 x 5 mm opening spans both USB-C sockets, matching the final
+    # requested cutout and beginning at the ESP32 PCB-back plane.
     usb_bottom = ESP32_PCB_Z - USB_OPENING_BELOW_BOARD
     usb_centre_z = usb_bottom + USB_OPENING_H / 2
     usb_cut = (
@@ -191,6 +257,15 @@ def make_rear_shell() -> cq.Workplane:
 
     rear = rear.union(cylinders(CLOSURE_POINTS, 5.5, WALL, REAR_D - WALL - 0.3))
     rear = rear.cut(cylinders(CLOSURE_POINTS, CLEARANCE_D, -0.2, REAR_D + 0.4))
+    # Locally interrupt the rear seam ridge around the six 7.5 mm front bosses.
+    # The 0.2 mm radial allowance prevents the interlock from clipping a boss.
+    seam_boss_reliefs = cylinders(
+        CLOSURE_POINTS,
+        7.5 + 2 * SEAM_RADIAL_CLEARANCE,
+        REAR_D - 0.1,
+        SEAM_ENGAGEMENT + 0.5,
+    )
+    rear = rear.cut(seam_boss_reliefs)
 
     rear = rear.union(cylinders(SCREEN_HOLES, POST_BASE_OD, WALL, 3.0))
     rear = rear.union(cylinders(SCREEN_HOLES, POST_OD, WALL, SCREEN_PCB_Z - WALL))
@@ -217,18 +292,68 @@ def make_rear_shell() -> cq.Workplane:
     rear = rear.union(cylinders(JOYSTICK_HOLES, POST_OD, WALL, JOYSTICK_PCB_Z - WALL))
     rear = rear.cut(cylinders(JOYSTICK_HOLES, PILOT_D, JOYSTICK_PCB_Z - 5.0, 5.3))
 
-    # ESP32 slides lengthwise into two rails. Main PCB is 57 x 28; the 7 mm
-    # antenna projection remains outside the end stop and free of plastic.
-    rail_w = 1.8
-    rail_h = 2.4
-    rail_length = 57.0
-    rail_x = ESP32_CRADLE_CLEAR_W / 2 + rail_w / 2
-    rail_centre_y = 3.5
-    for x in (-rail_x, rail_x):
-        rail = cq.Workplane("XY").box(rail_w, rail_length, rail_h, centered=(True, True, False)).translate((x, rail_centre_y, WALL))
-        rear = rear.union(rail)
-    end_stop = cq.Workplane("XY").box(ESP32_CRADLE_CLEAR_W + 2 * rail_w, 2.0, 3.0, centered=(True, True, False)).translate((0, -26.0, WALL))
-    return rear.union(end_stop).clean()
+    # ESP32 pocket: exact 28 x 63 mm internal size with a 5 mm-high perimeter.
+    # A 0.8 mm floor pad establishes the existing Z=3.2 PCB-back plane.
+    pad_height = ESP32_PCB_Z - WALL
+    pocket_floor = (
+        cq.Workplane("XY")
+        .box(ESP32_POCKET_W, ESP32_POCKET_L, pad_height, centered=(True, True, False))
+        .translate((0, 0, WALL))
+    )
+    outer_w = ESP32_POCKET_W + 2 * ESP32_BORDER_T
+    outer_l = ESP32_POCKET_L + 2 * ESP32_BORDER_T
+    border_outer = (
+        cq.Workplane("XY")
+        .box(outer_w, outer_l, ESP32_BORDER_H, centered=(True, True, False))
+        .translate((0, 0, WALL))
+    )
+    border_inner = (
+        cq.Workplane("XY")
+        .box(ESP32_POCKET_W, ESP32_POCKET_L, ESP32_BORDER_H + 0.4, centered=(True, True, False))
+        .translate((0, 0, WALL - 0.2))
+    )
+    pocket_border = border_outer.cut(border_inner)
+
+    # Clear the USB-facing short border across the same 22 mm connector opening.
+    pocket_usb_cut = (
+        cq.Workplane("XY")
+        .box(USB_OPENING_W, ESP32_BORDER_T + 0.8, ESP32_BORDER_H + 0.4, centered=(True, True, False))
+        .translate((0, ESP32_POCKET_L / 2 + ESP32_BORDER_T / 2, WALL - 0.2))
+    )
+    pocket_border = pocket_border.cut(pocket_usb_cut)
+
+    # At the antenna end, a 3 mm-thick horizontal lip projects 5 mm back over
+    # the PCB. Its underside has 0.4 mm clearance above the 1.6 mm board.
+    lip_bottom = ESP32_PCB_Z + ESP32_BOARD_T + ESP32_LIP_CLEARANCE
+    lip_length = ESP32_BORDER_T + ESP32_LIP_OVERLAP
+    lip_centre_y = -(ESP32_POCKET_L / 2 + ESP32_BORDER_T - lip_length / 2)
+    antenna_lip = (
+        cq.Workplane("XY")
+        .box(outer_w, lip_length, ESP32_LIP_T, centered=(True, True, False))
+        .translate((0, lip_centre_y, lip_bottom))
+    )
+
+    # The USB-side lip is anchored into the inside top wall and projects 5 mm
+    # inward over the 22 mm socket pair. Its underside is exactly 5 mm above the
+    # PCB-back plane, so it bears at the measured connector-top height while the
+    # 22 x 5 mm external opening below remains unobstructed.
+    inside_top_wall_y = CASE_H / 2 - WALL
+    usb_lip_length = ESP32_USB_LIP_PROJECTION + ESP32_USB_LIP_WALL_OVERLAP
+    usb_lip_centre_y = inside_top_wall_y - ESP32_USB_LIP_PROJECTION / 2 + ESP32_USB_LIP_WALL_OVERLAP / 2
+    usb_lip_bottom = ESP32_PCB_Z + ESP32_USB_LIP_HEIGHT_FROM_PCB
+    usb_socket_lip = (
+        cq.Workplane("XY")
+        .box(USB_OPENING_W, usb_lip_length, ESP32_USB_LIP_T, centered=(True, True, False))
+        .translate((0, usb_lip_centre_y, usb_lip_bottom))
+    )
+    return (
+        rear
+        .union(pocket_floor)
+        .union(pocket_border)
+        .union(antenna_lip)
+        .union(usb_socket_lip)
+        .clean()
+    )
 
 
 def make_reference_parts():
@@ -361,11 +486,20 @@ def contact_dimensions():
         linear("Joystick mount pitch Y (centre-to-centre)", JOYSTICK_PITCH_Y, (-75, -13, JOYSTICK_PCB_Z), (-75, 13, JOYSTICK_PCB_Z), (-84, 0, JOYSTICK_PCB_Z), direction=(0, 1, 0)),
         linear("Joystick PCB mounting plane from rear", JOYSTICK_PCB_Z, (65, 0, 0), (65, 0, JOYSTICK_PCB_Z), (78, 0, JOYSTICK_PCB_Z / 2), normal=(0, 1, 0), direction=(0, 0, 1)),
         diameter("Joystick front opening", JOYSTICK_OPENING_D, (-JOYSTICK_X, 0, CASE_D), (-JOYSTICK_X, 20, CASE_D)),
-        linear("ESP32 cradle clear width", ESP32_CRADLE_CLEAR_W, (-ESP32_CRADLE_CLEAR_W / 2, 3.5, ESP32_PCB_Z), (ESP32_CRADLE_CLEAR_W / 2, 3.5, ESP32_PCB_Z), (0, 12, ESP32_PCB_Z)),
+        linear("ESP32 pocket internal width", ESP32_POCKET_W, (-ESP32_POCKET_W / 2, 0, WALL + ESP32_BORDER_H), (ESP32_POCKET_W / 2, 0, WALL + ESP32_BORDER_H), (0, 10, WALL + ESP32_BORDER_H)),
+        linear("ESP32 pocket internal length", ESP32_POCKET_L, (-ESP32_POCKET_W / 2, -ESP32_POCKET_L / 2, WALL + ESP32_BORDER_H), (-ESP32_POCKET_W / 2, ESP32_POCKET_L / 2, WALL + ESP32_BORDER_H), (-24, 0, WALL + ESP32_BORDER_H), direction=(0, 1, 0)),
+        linear("ESP32 pocket border height", ESP32_BORDER_H, (18, 0, WALL), (18, 0, WALL + ESP32_BORDER_H), (25, 0, WALL + ESP32_BORDER_H / 2), normal=(0, 1, 0), direction=(0, 0, 1)),
+        linear("ESP32 antenna lip overlap", ESP32_LIP_OVERLAP, (0, -ESP32_POCKET_L / 2, WALL + ESP32_BORDER_H), (0, -ESP32_POCKET_L / 2 + ESP32_LIP_OVERLAP, WALL + ESP32_BORDER_H), (8, -ESP32_POCKET_L / 2 + ESP32_LIP_OVERLAP / 2, WALL + ESP32_BORDER_H), direction=(0, 1, 0)),
+        linear("ESP32 antenna lip thickness", ESP32_LIP_T, (0, -ESP32_POCKET_L / 2, ESP32_PCB_Z + ESP32_BOARD_T + ESP32_LIP_CLEARANCE), (0, -ESP32_POCKET_L / 2, ESP32_PCB_Z + ESP32_BOARD_T + ESP32_LIP_CLEARANCE + ESP32_LIP_T), (10, -ESP32_POCKET_L / 2, ESP32_PCB_Z + ESP32_BOARD_T + ESP32_LIP_CLEARANCE + ESP32_LIP_T / 2), normal=(0, 1, 0), direction=(0, 0, 1)),
         linear("ESP32 PCB plane from rear", ESP32_PCB_Z, (25, 0, 0), (25, 0, ESP32_PCB_Z), (34, 0, ESP32_PCB_Z / 2), normal=(0, 1, 0), direction=(0, 0, 1)),
         linear("ESP32 temporary-wire clearance", ESP32_WIRE_CLEARANCE, (0, 3.5, ESP32_PCB_Z), (0, 3.5, ESP32_PCB_Z + ESP32_WIRE_CLEARANCE), (32, 3.5, ESP32_PCB_Z + ESP32_WIRE_CLEARANCE / 2), normal=(0, 1, 0), direction=(0, 0, 1)),
         linear("Dual USB-C opening width", USB_OPENING_W, (-USB_OPENING_W / 2, 39, usb_bottom), (USB_OPENING_W / 2, 39, usb_bottom), (0, 47, usb_bottom)),
         linear("Dual USB-C opening height", USB_OPENING_H, (USB_OPENING_W / 2, 39, usb_bottom), (USB_OPENING_W / 2, 39, usb_bottom + USB_OPENING_H), (24, 39, usb_bottom + USB_OPENING_H / 2), normal=(0, 1, 0), direction=(0, 0, 1)),
+        linear("USB socket lip underside above PCB back", ESP32_USB_LIP_HEIGHT_FROM_PCB, (0, CASE_H / 2 - WALL - ESP32_USB_LIP_PROJECTION / 2, ESP32_PCB_Z), (0, CASE_H / 2 - WALL - ESP32_USB_LIP_PROJECTION / 2, ESP32_PCB_Z + ESP32_USB_LIP_HEIGHT_FROM_PCB), (-18, CASE_H / 2 - WALL - ESP32_USB_LIP_PROJECTION / 2, ESP32_PCB_Z + ESP32_USB_LIP_HEIGHT_FROM_PCB / 2), normal=(0, 1, 0), direction=(0, 0, 1)),
+        linear("USB socket lip inward projection", ESP32_USB_LIP_PROJECTION, (0, CASE_H / 2 - WALL, ESP32_PCB_Z + ESP32_USB_LIP_HEIGHT_FROM_PCB + ESP32_USB_LIP_T), (0, CASE_H / 2 - WALL - ESP32_USB_LIP_PROJECTION, ESP32_PCB_Z + ESP32_USB_LIP_HEIGHT_FROM_PCB + ESP32_USB_LIP_T), (12, CASE_H / 2 - WALL - ESP32_USB_LIP_PROJECTION / 2, ESP32_PCB_Z + ESP32_USB_LIP_HEIGHT_FROM_PCB + ESP32_USB_LIP_T), direction=(0, 1, 0)),
+        linear("USB socket lip thickness", ESP32_USB_LIP_T, (USB_OPENING_W / 2, CASE_H / 2 - WALL - ESP32_USB_LIP_PROJECTION / 2, ESP32_PCB_Z + ESP32_USB_LIP_HEIGHT_FROM_PCB), (USB_OPENING_W / 2, CASE_H / 2 - WALL - ESP32_USB_LIP_PROJECTION / 2, ESP32_PCB_Z + ESP32_USB_LIP_HEIGHT_FROM_PCB + ESP32_USB_LIP_T), (22, CASE_H / 2 - WALL - ESP32_USB_LIP_PROJECTION / 2, ESP32_PCB_Z + ESP32_USB_LIP_HEIGHT_FROM_PCB + ESP32_USB_LIP_T / 2), normal=(0, 1, 0), direction=(0, 0, 1)),
+        linear("Perimeter seam engagement", SEAM_ENGAGEMENT, (89.4, 0, REAR_D - SEAM_ENGAGEMENT), (89.4, 0, REAR_D), (98, 0, REAR_D - SEAM_ENGAGEMENT / 2), normal=(0, 1, 0), direction=(0, 0, 1)),
+        linear("Perimeter seam radial clearance", SEAM_RADIAL_CLEARANCE, (CASE_W / 2 - SEAM_FRONT_RIDGE_W - SEAM_RADIAL_CLEARANCE, 0, REAR_D - SEAM_ENGAGEMENT / 2), (CASE_W / 2 - SEAM_FRONT_RIDGE_W, 0, REAR_D - SEAM_ENGAGEMENT / 2), (CASE_W / 2 - SEAM_FRONT_RIDGE_W - SEAM_RADIAL_CLEARANCE / 2, 8, REAR_D - SEAM_ENGAGEMENT / 2)),
         diameter("Rear M2 screw clearance", CLEARANCE_D, (-84, 0, REAR_D), (-75, 8, REAR_D)),
         diameter("Front M2 screw pilot", PILOT_D, (-84, 0, CASE_D - FRONT_D), (-75, -8, CASE_D - FRONT_D)),
     ]
@@ -437,11 +571,26 @@ def export_all():
     if not front.val().isValid() or not rear.val().isValid():
         raise RuntimeError("Generated enclosure contains an invalid solid")
 
-    front_dims = overall_dimensions(FRONT_D) + [
-        linear("TFT window width - verify against glass", SCREEN_WINDOW_W, (-37, -23, 0), (37, -23, 0), (0, -31, 0)),
-        linear("TFT window height - verify against glass", SCREEN_WINDOW_H, (-37, -23, 0), (-37, 23, 0), (-47, 0, 0), direction=(0, 1, 0)),
+    front_dims = overall_dimensions(FRONT_D + SEAM_ENGAGEMENT) + [
+        linear(
+            "TFT protrusion opening width",
+            SCREEN_WINDOW_W,
+            (-SCREEN_WINDOW_W / 2, -SCREEN_WINDOW_H / 2, 0),
+            (SCREEN_WINDOW_W / 2, -SCREEN_WINDOW_H / 2, 0),
+            (0, -SCREEN_WINDOW_H / 2 - 8, 0),
+        ),
+        linear(
+            "TFT protrusion opening height",
+            SCREEN_WINDOW_H,
+            (-SCREEN_WINDOW_W / 2, -SCREEN_WINDOW_H / 2, 0),
+            (-SCREEN_WINDOW_W / 2, SCREEN_WINDOW_H / 2, 0),
+            (-SCREEN_WINDOW_W / 2 - 10, 0, 0),
+            direction=(0, 1, 0),
+        ),
         diameter("Joystick front opening", JOYSTICK_OPENING_D, (-JOYSTICK_X, 0, 0), (-JOYSTICK_X, 20, 0)),
         diameter("Front M2 screw pilot", PILOT_D, (-84, 0, FRONT_D), (-75, -8, FRONT_D)),
+        linear("Front outer seam ridge width", SEAM_FRONT_RIDGE_W, (CASE_W / 2 - SEAM_FRONT_RIDGE_W, 0, FRONT_D + SEAM_ENGAGEMENT), (CASE_W / 2, 0, FRONT_D + SEAM_ENGAGEMENT), (CASE_W / 2 - SEAM_FRONT_RIDGE_W / 2, 8, FRONT_D + SEAM_ENGAGEMENT)),
+        linear("Front seam ridge engagement", SEAM_ENGAGEMENT, (89.4, 0, FRONT_D), (89.4, 0, FRONT_D + SEAM_ENGAGEMENT), (98, 0, FRONT_D + SEAM_ENGAGEMENT / 2), normal=(0, 1, 0), direction=(0, 0, 1)),
     ]
     export_ap242("ESPConsole front", [front.val()], OUT / "espconsole-front.step", front_dims)
 
@@ -449,8 +598,13 @@ def export_all():
     # nest into the front cavity, so the standalone rear part is 24.1 mm deep.
     contacts = contact_dimensions()
     rear_dims = overall_dimensions(SCREEN_PCB_Z) + [
-        contacts[index]
-        for index in (0, 1, 2, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14)
+        dimension
+        for dimension in contacts
+        if not dimension.name.startswith((
+            "TFT front inset",
+            "Joystick front opening",
+            "Front M2 screw pilot",
+        ))
     ]
     export_ap242("ESPConsole rear", [rear.val()], OUT / "espconsole-rear.step", rear_dims)
 
